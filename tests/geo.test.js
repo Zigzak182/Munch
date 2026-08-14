@@ -1,7 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { boundingBox, distanceMeters, formatDistance, walkingMinutes } from '../src/geo.js';
+import {
+  LocationError, boundingBox, currentPosition, distanceMeters, formatDistance, walkingMinutes,
+} from '../src/geo.js';
+
+/** Install a fake Geolocation API for one test. */
+function stubGeolocation(getCurrentPosition) {
+  Object.defineProperty(globalThis, 'navigator', {
+    value: { geolocation: { getCurrentPosition } },
+    configurable: true,
+    writable: true,
+  });
+}
 
 const LONDON = { lat: 51.5074, lon: -0.1278 };
 const PARIS = { lat: 48.8566, lon: 2.3522 };
@@ -41,6 +52,45 @@ test('formatDistance supports imperial output', () => {
 test('walking time is never below a minute', () => {
   assert.equal(walkingMinutes(10), 1);
   assert.equal(walkingMinutes(800), 10);
+});
+
+test('currentPosition resolves with flattened coordinates', async () => {
+  stubGeolocation((success) => success({ coords: { latitude: 51.5, longitude: -0.12, accuracy: 8 } }));
+
+  assert.deepEqual(await currentPosition(), { lat: 51.5, lon: -0.12, accuracy: 8 });
+});
+
+test('currentPosition maps a denial to a LocationError the UI can show', async () => {
+  stubGeolocation((success, failure) => failure({ code: 1 }));
+
+  await assert.rejects(currentPosition(), (error) => {
+    assert.ok(error instanceof LocationError);
+    assert.equal(error.code, 'denied');
+    assert.match(error.message, /permission was denied/i);
+    return true;
+  });
+});
+
+test('a permission prompt that is never answered rejects instead of hanging', async () => {
+  // Browsers do not count time spent on the permission prompt against the
+  // `timeout` option, so neither callback ever fires here. Without our own
+  // watchdog the UI would wait forever.
+  stubGeolocation(() => {});
+
+  await assert.rejects(currentPosition({ watchdog: 40 }), (error) => {
+    assert.equal(error.code, 'no-response');
+    return true;
+  });
+});
+
+test('a late callback cannot settle the promise twice', async () => {
+  let succeed;
+  stubGeolocation((success) => { succeed = success; });
+
+  await assert.rejects(currentPosition({ watchdog: 20 }), { code: 'no-response' });
+
+  // Arrives after the watchdog gave up; must not throw.
+  assert.doesNotThrow(() => succeed({ coords: { latitude: 1, longitude: 2, accuracy: 3 } }));
 });
 
 test('bounding box contains points at the requested radius', () => {
