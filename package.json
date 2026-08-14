@@ -1,0 +1,13 @@
+{
+  "name": "munch",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Diagnose your hunger by texture, flavour and cuisine, then find the closest places that fit.",
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "test": "node --test"
+  },
+  "keywords": ["food", "restaurants", "openstreetmap", "geolocation"],
+  "license": "MIT"
+}
