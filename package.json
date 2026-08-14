@@ -8,6 +8,6 @@
     "start": "python3 -m http.server 8080",
     "test": "node --test"
   },
-  "keywords": ["food", "restaurants", "openstreetmap", "geolocation"],
+  "keywords": ["food", "restaurants", "google-places", "geolocation"],
   "license": "MIT"
 }

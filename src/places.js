@@ -1,249 +1,38 @@
 /**
- * Nearby-venue lookup, backed by OpenStreetMap.
+ * Venue lookup: picks a provider and gets out of the way.
  *
- * Overpass supplies the venues and Nominatim resolves typed-in place names.
- * Both are keyless public services, which is why they were chosen — the app
- * runs with no signup and no secrets — but they are also rate limited, so we
- * query once per search, ask for a bounded result set, and widen the radius
- * only when the first pass comes back thin.
+ * Google Places is used whenever an API key is configured — better coverage,
+ * ratings, and one fast request. Without a key the app falls back to
+ * OpenStreetMap so it still works for anyone who loads it, at the cost of
+ * patchier data and no map.
  */
 
-import { boundingBox, distanceMeters } from './geo.js';
+import { hasGoogle } from './config.js';
+import * as google from './providers/google.js';
+import * as osm from './providers/osm.js';
 
-const OVERPASS_ENDPOINTS = [
-  'https://overpass-api.de/api/interpreter',
-  'https://overpass.kumi.systems/api/interpreter',
-  'https://overpass.private.coffee/api/interpreter',
-];
+export { MAX_RESULTS, PlacesError, SEARCH_RADIUS, WIDE_RADIUS, rankPlaces } from './places-shared.js';
 
-const NOMINATIM_ENDPOINT = 'https://nominatim.openstreetmap.org/search';
-
-/** Venue types worth sending a hungry person to. */
-const AMENITIES = ['restaurant', 'fast_food', 'cafe', 'bar', 'pub'];
+/** Which provider is answering — surfaced in the UI's attribution line. */
+export const activeProvider = () => (hasGoogle() ? 'google' : 'osm');
 
 /**
- * One generous pass covers a walk, a bus ride and most of a small town, so
- * the common case is a single request. `WIDE_RADIUS` is only tried when the
- * first pass finds *nothing at all* — escalating on a merely thin result set
- * meant three round trips on nearly every search.
- */
-export const SEARCH_RADIUS = 5000;
-export const WIDE_RADIUS = 15000;
-
-/** Give up on a mirror after this long and try the next one. */
-const ENDPOINT_TIMEOUT = 12000;
-
-const MAX_RESULTS = 40;
-
-/** Failure that the UI can present to the user as-is. */
-export class PlacesError extends Error {
-  constructor(message, { code = 'unknown', cause } = {}) {
-    super(message, { cause });
-    this.name = 'PlacesError';
-    this.code = code;
-  }
-}
-
-const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-/**
- * Build the Overpass QL query.
+ * Find venues near `origin` for a cuisine.
  *
- * Two passes are unioned: venues whose `cuisine` tag matches the chosen
- * cuisine, and venues whose *name* hints at the dish (a taqueria rarely tags
- * itself). `out center` collapses ways and relations to a single coordinate.
- */
-export function buildOverpassQuery({ lat, lon }, { cuisineTags = [], nameTerms = [], radius }) {
-  const amenity = `^(${AMENITIES.join('|')})$`;
-  const around = `(around:${Math.round(radius)},${lat.toFixed(6)},${lon.toFixed(6)})`;
-  const clauses = [];
-
-  if (cuisineTags.length > 0) {
-    const pattern = cuisineTags.map(escapeRegex).join('|');
-    clauses.push(`nwr["amenity"~"${amenity}"]["cuisine"~"${pattern}",i]${around};`);
-  }
-
-  if (nameTerms.length > 0) {
-    const pattern = nameTerms.map(escapeRegex).join('|');
-    clauses.push(`nwr["amenity"~"${amenity}"]["name"~"${pattern}",i]${around};`);
-  }
-
-  if (clauses.length === 0) {
-    clauses.push(`nwr["amenity"~"${amenity}"]${around};`);
-  }
-
-  // `out center` keeps the default `body` verbosity, which carries tags *and*
-  // coordinates. Do not add `tags` here: that verbosity drops coordinates, and
-  // since most venues are mapped as single nodes rather than building
-  // outlines, it silently discards nearly every real result.
-  return `[out:json][timeout:20];(\n  ${clauses.join('\n  ')}\n);out center ${MAX_RESULTS * 3};`;
-}
-
-/** Reduce a raw Overpass element to the fields the UI needs. */
-export function normalizeElement(element) {
-  const tags = element.tags ?? {};
-  const lat = element.lat ?? element.center?.lat;
-  const lon = element.lon ?? element.center?.lon;
-  if (typeof lat !== 'number' || typeof lon !== 'number') return null;
-  if (!tags.name) return null;
-
-  const street = [tags['addr:housenumber'], tags['addr:street']].filter(Boolean).join(' ');
-  const address = [street, tags['addr:city']].filter(Boolean).join(', ');
-
-  return {
-    id: `${element.type}/${element.id}`,
-    name: tags.name,
-    lat,
-    lon,
-    amenity: tags.amenity ?? '',
-    cuisine: tags.cuisine ?? '',
-    address,
-    openingHours: tags.opening_hours ?? '',
-    website: tags.website ?? tags['contact:website'] ?? '',
-    phone: tags.phone ?? tags['contact:phone'] ?? '',
-    takeaway: tags.takeaway === 'yes',
-    outdoorSeating: tags.outdoor_seating === 'yes',
-    vegetarian: tags['diet:vegetarian'] === 'yes' || tags['diet:vegan'] === 'yes',
-  };
-}
-
-const splitCuisine = (value) => value.toLowerCase().split(/[;,]/).map((part) => part.trim());
-
-/**
- * Rank venues: exact cuisine-tag matches first, then name hints, then
- * everything else — and within each tier, closest wins.
- */
-export function rankPlaces(places, origin, { cuisineTags = [], nameTerms = [] } = {}) {
-  const cuisineSet = new Set(cuisineTags.map((tag) => tag.toLowerCase()));
-  const terms = nameTerms.map((term) => term.toLowerCase());
-
-  return places
-    .map((place) => {
-      const parts = splitCuisine(place.cuisine);
-      const haystack = `${place.name} ${place.cuisine}`.toLowerCase();
-      const cuisineMatch = parts.some((part) => cuisineSet.has(part));
-      const nameMatch = terms.some((term) => haystack.includes(term));
-
-      return {
-        ...place,
-        distance: distanceMeters(origin, place),
-        cuisineMatch,
-        nameMatch,
-        tier: cuisineMatch ? 0 : nameMatch ? 1 : 2,
-      };
-    })
-    .sort((a, b) => a.tier - b.tier || a.distance - b.distance)
-    .slice(0, MAX_RESULTS);
-}
-
-async function postOverpass(query, { signal }) {
-  let lastError;
-
-  for (const endpoint of OVERPASS_ENDPOINTS) {
-    // A mirror under load can sit on a connection for the full server-side
-    // timeout. Cap each attempt ourselves so a slow one costs seconds, not a
-    // minute, before we move on.
-    const controller = new AbortController();
-    const abort = () => controller.abort();
-    signal?.addEventListener('abort', abort, { once: true });
-    const timer = setTimeout(abort, ENDPOINT_TIMEOUT);
-
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ data: query }),
-        signal: controller.signal,
-      });
-
-      if (response.status === 429 || response.status === 504) {
-        lastError = new PlacesError('The map service is busy. Try again in a moment.', { code: 'busy' });
-        continue;
-      }
-      if (!response.ok) {
-        lastError = new PlacesError(`Map service returned ${response.status}.`, { code: 'http' });
-        continue;
-      }
-
-      return await response.json();
-    } catch (error) {
-      // Only the caller cancelling ends the whole search; our own deadline
-      // just means this mirror was too slow.
-      if (signal?.aborted) throw error;
-      lastError = error.name === 'AbortError'
-        ? new PlacesError('The map service is taking too long.', { code: 'timeout' })
-        : new PlacesError('Could not reach the map service.', { code: 'network', cause: error });
-    } finally {
-      clearTimeout(timer);
-      signal?.removeEventListener('abort', abort);
-    }
-  }
-
-  throw lastError ?? new PlacesError('Could not reach the map service.', { code: 'network' });
-}
-
-/**
- * Find venues near `origin` matching the diagnosis.
+ * Callers pass both sets of type hints; the provider uses whichever it
+ * understands, so neither side needs to know which one is live.
  *
- * Normally one request. The wider pass runs only when the first finds nothing
- * at all, which is the rural case rather than the everyday one.
- *
+ * @param {{lat:number, lon:number}} origin
+ * @param {{googleTypes?: string[], cuisineTags?: string[], nameTerms?: string[], signal?: AbortSignal}} options
  * @returns {Promise<{places: object[], radius: number}>}
  */
-export async function findNearbyPlaces(origin, { cuisineTags = [], nameTerms = [], signal } = {}) {
-  let best = { places: [], radius: SEARCH_RADIUS };
-
-  for (const radius of [SEARCH_RADIUS, WIDE_RADIUS]) {
-    const query = buildOverpassQuery(origin, { cuisineTags, nameTerms, radius });
-    const data = await postOverpass(query, { signal });
-
-    const box = boundingBox(origin, radius * 1.1);
-    const normalized = (data.elements ?? [])
-      .map(normalizeElement)
-      .filter((place) => place
-        && place.lat >= box.minLat && place.lat <= box.maxLat
-        && place.lon >= box.minLon && place.lon <= box.maxLon);
-
-    const unique = [...new Map(normalized.map((place) => [place.id, place])).values()];
-    const ranked = rankPlaces(unique, origin, { cuisineTags, nameTerms });
-
-    best = { places: ranked, radius };
-    if (ranked.length > 0) break;
-  }
-
-  return best;
+export function findNearbyPlaces(origin, options = {}) {
+  return hasGoogle()
+    ? google.findNearbyPlaces(origin, options)
+    : osm.findNearbyPlaces(origin, options);
 }
 
-/**
- * Resolve a typed place name to coordinates, for when GPS is denied or the
- * user wants to plan for somewhere they are not standing.
- */
-export async function geocode(query, { signal } = {}) {
-  const url = new URL(NOMINATIM_ENDPOINT);
-  url.searchParams.set('q', query);
-  url.searchParams.set('format', 'jsonv2');
-  url.searchParams.set('limit', '1');
-
-  let response;
-  try {
-    response = await fetch(url, { headers: { Accept: 'application/json' }, signal });
-  } catch (error) {
-    if (error.name === 'AbortError') throw error;
-    throw new PlacesError('Could not reach the search service.', { code: 'network', cause: error });
-  }
-
-  if (!response.ok) {
-    throw new PlacesError('Place search is unavailable right now.', { code: 'http' });
-  }
-
-  const [match] = await response.json();
-  if (!match) {
-    throw new PlacesError(`No place found for “${query}”.`, { code: 'not-found' });
-  }
-
-  return {
-    lat: Number(match.lat),
-    lon: Number(match.lon),
-    label: match.display_name,
-  };
+/** Resolve a typed place name to coordinates. */
+export function geocode(query, options = {}) {
+  return hasGoogle() ? google.geocode(query, options) : osm.geocode(query, options);
 }

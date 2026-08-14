@@ -114,6 +114,13 @@ a { color: var(--accent); }
 }
 
 .app__footer p { margin: 0; }
+.app__footer code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  font-size: 0.92em;
+}
 
 /* --------------------------------------------------------------- progress */
 
@@ -549,10 +556,12 @@ a { color: var(--accent); }
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--bg-sunken);
-  z-index: 0;
+  overflow: hidden;
 }
 
 .pin {
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   border: 2px solid #fff;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
@@ -560,9 +569,23 @@ a { color: var(--accent); }
 
 .pin--match { background: var(--accent); }
 .pin--near { background: #8d8078; }
+.pin--here { background: #2f6bff; }
 
-.leaflet-popup-content { font: inherit; font-size: 14px; }
-.popup__meta { color: #555; }
+/* Google renders info windows on a white surface in both themes. */
+.gm-style .popup__meta { color: #555; }
+
+/* A configuration problem the user has to fix — key missing or rejected. */
+.notice {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--warn);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.notice[hidden] { display: none; }
 
 .sort {
   display: inline-flex;
@@ -597,6 +620,8 @@ a { color: var(--accent); }
 .place__meta { margin: 0; font-size: 13.5px; color: var(--text-muted); }
 .place__type { text-transform: capitalize; }
 .place__hours { margin: 0; font-size: 13px; color: var(--text-muted); }
+.place__rating { margin: 0; font-size: 14px; font-weight: 600; color: var(--text); }
+.place__rating span { color: var(--accent); }
 .place__badges { display: flex; gap: 6px; flex-wrap: wrap; }
 
 .badge {
@@ -610,6 +635,8 @@ a { color: var(--accent); }
 }
 
 .badge--match { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.badge--open { border-color: var(--ok); color: var(--ok); }
+.badge--shut { border-color: var(--error); color: var(--error); }
 
 .place__links { display: flex; gap: 14px; flex-wrap: wrap; font-size: 14px; margin-top: 2px; }
 
