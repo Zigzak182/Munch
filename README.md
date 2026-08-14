@@ -55,11 +55,16 @@ npm test           # node --test — unit tests for the pure modules
    to ~650ms with no confetti under `prefers-reduced-motion`.
 5. **Location** — requested automatically once the reveal ends, via the
    browser's Geolocation API; Nominatim handles typed place names.
-6. **Venues** — an Overpass query pulls restaurants, fast food, cafés, bars and
-   pubs around that point, in two passes: places whose `cuisine` tag matches,
-   and places whose *name* hints at the dish (a taqueria rarely tags itself).
-   The search starts at 1.5 km and widens to 4 km then 10 km only if it comes
-   back thin.
+6. **Venues** — a single Overpass query pulls restaurants, fast food, cafés,
+   bars and pubs within 5 km, matching two ways: places whose `cuisine` tag
+   fits, and places whose *name* hints at the dish (a taqueria rarely tags
+   itself). It widens to 15 km only when that finds nothing at all. Each
+   mirror gets 12 seconds before we move to the next.
+
+   The `out` statement must stay `out center` — the `tags` verbosity returns
+   ids and tags but drops coordinates, and since most venues are mapped as
+   single nodes rather than building outlines, that silently discards nearly
+   every real result. There is a test pinning this.
 7. **Results** — ranked by match quality first, distance second, and shown as
    either a map or a sortable list. Every venue links out to directions.
 

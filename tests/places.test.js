@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildOverpassQuery, normalizeElement, rankPlaces } from '../src/places.js';
+import {
+  SEARCH_RADIUS, WIDE_RADIUS, buildOverpassQuery, findNearbyPlaces, normalizeElement, rankPlaces,
+} from '../src/places.js';
 
 const ORIGIN = { lat: 51.5074, lon: -0.1278 };
 
@@ -16,7 +18,26 @@ test('query includes a cuisine clause, a name clause and the radius', () => {
   assert.match(query, /"cuisine"~"japanese\|sushi",i/);
   assert.match(query, /"name"~"ramen",i/);
   assert.match(query, /\(around:1500,51\.507400,-0\.127800\)/);
-  assert.match(query, /out center tags \d+;$/);
+  assert.match(query, /out center \d+;$/);
+});
+
+test('the out statement keeps coordinates', () => {
+  // Regression: `out center tags` uses the `tags` verbosity, which returns
+  // ids and tags but *no* coordinates. Venues mapped as nodes — the majority
+  // of them — then arrive without lat/lon and get dropped as unusable.
+  const query = buildOverpassQuery(ORIGIN, { cuisineTags: ['japanese'], radius: 1500 });
+
+  assert.doesNotMatch(query, /out[^;]*\btags\b/);
+  assert.match(query, /\bout center\b/);
+});
+
+test('a node carrying only tags and no position is unusable', () => {
+  // What the `tags` verbosity actually returned, and why nothing showed up.
+  assert.equal(normalizeElement({
+    type: 'node',
+    id: 1,
+    tags: { name: 'Ramen Bar', amenity: 'restaurant', cuisine: 'japanese' },
+  }), null);
 });
 
 test('query falls back to any eatery when no terms are supplied', () => {
@@ -89,4 +110,70 @@ test('cuisine matching is exact per tag, not a substring', () => {
   const [ranked] = rankPlaces(places, ORIGIN, { cuisineTags: ['japanese'], nameTerms: [] });
   assert.equal(ranked.cuisineMatch, false);
   assert.equal(ranked.tier, 2);
+});
+
+test('one pass is enough when the first radius finds something', async () => {
+  const calls = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    calls.push(decodeURIComponent(String(options.body)));
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        elements: [{
+          type: 'node',
+          id: 1,
+          lat: 51.5075,
+          lon: -0.1278,
+          tags: { name: 'Ramen Bar', amenity: 'restaurant', cuisine: 'japanese' },
+        }],
+      }),
+    };
+  };
+
+  try {
+    const { places, radius } = await findNearbyPlaces(ORIGIN, { cuisineTags: ['japanese'] });
+    assert.equal(calls.length, 1, `made ${calls.length} requests`);
+    assert.equal(radius, SEARCH_RADIUS);
+    assert.equal(places.length, 1);
+    assert.equal(places[0].name, 'Ramen Bar');
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test('an empty first pass widens exactly once', async () => {
+  const radii = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    radii.push(Number(/around:(\d+)/.exec(decodeURIComponent(String(options.body)))[1]));
+    return { ok: true, status: 200, json: async () => ({ elements: [] }) };
+  };
+
+  try {
+    const { places } = await findNearbyPlaces(ORIGIN, { cuisineTags: ['japanese'] });
+    assert.deepEqual(radii, [SEARCH_RADIUS, WIDE_RADIUS]);
+    assert.equal(places.length, 0);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test('a failing mirror falls through to the next one', async () => {
+  const tried = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    tried.push(String(url));
+    if (tried.length === 1) throw Object.assign(new Error('boom'), { name: 'TypeError' });
+    return { ok: true, status: 200, json: async () => ({ elements: [] }) };
+  };
+
+  try {
+    await findNearbyPlaces(ORIGIN, { cuisineTags: ['japanese'] });
+    assert.ok(tried.length >= 2, 'never tried a second mirror');
+    assert.notEqual(tried[0], tried[1]);
+  } finally {
+    globalThis.fetch = original;
+  }
 });
