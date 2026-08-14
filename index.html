@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Munch — diagnose your hunger</title>
+  <meta name="description" content="Answer three questions about texture, flavour and cuisine, and Munch finds the closest places that fit." />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#12100f" />
+
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍜</text></svg>" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="app__header">
+      <a class="brand" href="./" aria-label="Munch home">
+        <span class="brand__mark" aria-hidden="true">🍜</span>
+        <span class="brand__name">Munch</span>
+      </a>
+      <p class="brand__tagline">Hunger diagnostics</p>
+    </header>
+
+    <nav class="progress" aria-label="Progress">
+      <ol class="progress__list" id="progress-list"></ol>
+    </nav>
+
+    <main class="screens" id="screens">
+      <!-- Step 1 -->
+      <section class="screen" id="screen-texture" data-step="0" aria-labelledby="texture-title">
+        <p class="screen__eyebrow">Question 1 of 3</p>
+        <h1 class="screen__title" id="texture-title">What does it need to feel like?</h1>
+        <p class="screen__sub">Start with the mouthfeel. Everything else follows from it.</p>
+        <div class="options" id="texture-options" role="radiogroup" aria-labelledby="texture-title"></div>
+      </section>
+
+      <!-- Step 2 -->
+      <section class="screen" id="screen-flavor" data-step="1" aria-labelledby="flavor-title" hidden>
+        <p class="screen__eyebrow">Question 2 of 3</p>
+        <h1 class="screen__title" id="flavor-title">And what should it taste of?</h1>
+        <p class="screen__sub">Pick the note you want up front.</p>
+        <div class="options" id="flavor-options" role="radiogroup" aria-labelledby="flavor-title"></div>
+        <button class="btn btn--ghost" type="button" data-back>← Back</button>
+      </section>
+
+      <!-- Step 3 -->
+      <section class="screen" id="screen-cuisine" data-step="2" aria-labelledby="cuisine-title" hidden>
+        <p class="screen__eyebrow">Question 3 of 3</p>
+        <h1 class="screen__title" id="cuisine-title">Where are we going with this?</h1>
+        <p class="screen__sub">This decides which kitchens we search for near you.</p>
+        <div class="options" id="cuisine-options" role="radiogroup" aria-labelledby="cuisine-title"></div>
+        <button class="btn btn--ghost" type="button" data-back>← Back</button>
+      </section>
+
+      <!-- Results -->
+      <section class="screen screen--results" id="screen-results" data-step="3" aria-labelledby="results-title" hidden>
+        <div class="diagnosis" id="diagnosis">
+          <p class="screen__eyebrow">Diagnosis</p>
+          <h1 class="screen__title" id="results-title"></h1>
+          <p class="diagnosis__verdict" id="diagnosis-verdict"></p>
+          <ul class="dishes" id="dish-list"></ul>
+        </div>
+
+        <div class="locator" id="locator">
+          <div class="locator__actions">
+            <button class="btn btn--primary" type="button" id="use-location">
+              <span aria-hidden="true">📍</span> Use my location
+            </button>
+            <form class="locator__form" id="place-form">
+              <label class="visually-hidden" for="place-input">Search near a place</label>
+              <input class="input" id="place-input" name="place" type="search"
+                     placeholder="or type a place — “Shoreditch, London”" autocomplete="off" />
+              <button class="btn" type="submit">Search</button>
+            </form>
+          </div>
+          <p class="locator__status" id="locator-status" role="status" aria-live="polite"></p>
+        </div>
+
+        <div class="results" id="results" hidden>
+          <div class="results__bar">
+            <p class="results__count" id="results-count"></p>
+            <div class="toggle" role="tablist" aria-label="Result view">
+              <button class="toggle__btn is-active" type="button" role="tab" data-view="map" aria-selected="true">Map</button>
+              <button class="toggle__btn" type="button" role="tab" data-view="list" aria-selected="false">List</button>
+            </div>
+          </div>
+
+          <div class="results__map" id="map-panel" role="tabpanel" aria-label="Map of nearby places">
+            <div id="map"></div>
+          </div>
+
+          <div class="results__list" id="list-panel" role="tabpanel" aria-label="List of nearby places" hidden>
+            <label class="sort" for="sort-select">
+              Sort
+              <select class="select" id="sort-select">
+                <option value="best">Best match, then closest</option>
+                <option value="distance">Closest first</option>
+                <option value="name">Name (A–Z)</option>
+              </select>
+            </label>
+            <ul class="places" id="place-list"></ul>
+          </div>
+        </div>
+
+        <button class="btn btn--ghost" type="button" id="restart">↺ Start over</button>
+      </section>
+    </main>
+
+    <footer class="app__footer">
+      <p>
+        Venue data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>
+        via Overpass &amp; Nominatim. Your location never leaves your browser except to query those services.
+      </p>
+    </footer>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,463 @@
+/**
+ * Static content for the Munch questionnaire.
+ *
+ * Everything the quiz asks about lives here so the screens stay dumb: each
+ * step renders `id`/`label`/`blurb` and hands the chosen `id` back to the
+ * diagnosis engine.
+ */
+
+/** Step 1 — how the food should feel. */
+export const TEXTURES = [
+  { id: 'crunchy', label: 'Crunchy', emoji: '🥨', blurb: 'Loud, brittle, snaps back' },
+  { id: 'soft', label: 'Soft', emoji: '🍞', blurb: 'Pillowy, warm, easy' },
+  { id: 'saucy', label: 'Saucy', emoji: '🍜', blurb: 'Glossy, brothy, spoonable' },
+  { id: 'crispy', label: 'Crispy', emoji: '🍟', blurb: 'Golden edges, fried, shattering' },
+];
+
+/** Step 2 — the dominant flavour note. */
+export const FLAVORS = [
+  { id: 'cheesy', label: 'Cheesy', emoji: '🧀', blurb: 'Melted, rich, pulls apart' },
+  { id: 'spicy', label: 'Spicy', emoji: '🌶️', blurb: 'Heat, chilli, a little sweat' },
+  { id: 'savory', label: 'Savory', emoji: '🍖', blurb: 'Umami, salty, deeply brown' },
+  { id: 'fresh', label: 'Fresh', emoji: '🥗', blurb: 'Bright, herby, citrus-lifted' },
+];
+
+/**
+ * Step 3 — cuisine. `osmCuisines` are the values seen in OpenStreetMap's
+ * `cuisine=*` tag; they are matched as whole words against the tag, which is
+ * itself a semicolon-separated list (e.g. `cuisine=sushi;japanese`).
+ */
+export const CUISINES = [
+  {
+    id: 'japanese',
+    label: 'Japanese',
+    emoji: '🍱',
+    blurb: 'Ramen, sushi, katsu',
+    osmCuisines: ['japanese', 'sushi', 'ramen', 'noodle', 'izakaya', 'donburi', 'udon', 'yakitori'],
+  },
+  {
+    id: 'mexican',
+    label: 'Mexican',
+    emoji: '🌮',
+    blurb: 'Tacos, burritos, salsa',
+    osmCuisines: ['mexican', 'taco', 'tacos', 'burrito', 'tex-mex', 'latin_american'],
+  },
+  {
+    id: 'mediterranean',
+    label: 'Mediterranean',
+    emoji: '🫒',
+    blurb: 'Mezze, grills, olive oil',
+    osmCuisines: [
+      'mediterranean', 'greek', 'lebanese', 'turkish', 'italian', 'kebab',
+      'falafel', 'shawarma', 'middle_eastern', 'spanish', 'tapas',
+    ],
+  },
+  {
+    id: 'american',
+    label: 'American',
+    emoji: '🍔',
+    blurb: 'Burgers, BBQ, diners',
+    osmCuisines: [
+      'american', 'burger', 'barbecue', 'bbq', 'steak_house', 'diner',
+      'sandwich', 'chicken', 'fried_chicken', 'wings',
+    ],
+  },
+];
+
+/**
+ * Dish catalogue used to turn three answers into a readable diagnosis.
+ *
+ * `textures` and `flavors` list every tag a dish genuinely satisfies, so a
+ * dish can be reached from more than one path through the quiz. `terms` are
+ * lowercase substrings matched against a venue's name/cuisine tag to promote
+ * places that plausibly serve the dish.
+ */
+export const DISHES = [
+  // ---- Japanese ----
+  {
+    id: 'tonkatsu',
+    name: 'Tonkatsu',
+    cuisine: 'japanese',
+    textures: ['crispy', 'crunchy'],
+    flavors: ['savory'],
+    note: 'Panko-fried pork cutlet, shattering crust, tangy brown sauce.',
+    terms: ['katsu', 'tonkatsu', 'japanese'],
+  },
+  {
+    id: 'karaage',
+    name: 'Chicken karaage',
+    cuisine: 'japanese',
+    textures: ['crispy', 'crunchy'],
+    flavors: ['savory', 'spicy'],
+    note: 'Craggy fried chicken, ginger and soy, squeeze of lemon.',
+    terms: ['karaage', 'izakaya', 'japanese'],
+  },
+  {
+    id: 'tempura',
+    name: 'Tempura',
+    cuisine: 'japanese',
+    textures: ['crispy', 'crunchy'],
+    flavors: ['fresh', 'savory'],
+    note: 'Lacy batter over prawn and vegetables, dipped in tentsuyu.',
+    terms: ['tempura', 'japanese'],
+  },
+  {
+    id: 'tonkotsu-ramen',
+    name: 'Tonkotsu ramen',
+    cuisine: 'japanese',
+    textures: ['saucy', 'soft'],
+    flavors: ['savory'],
+    note: 'Pork bone broth gone milky and thick, chashu, jammy egg.',
+    terms: ['ramen', 'noodle', 'japanese'],
+  },
+  {
+    id: 'spicy-miso-ramen',
+    name: 'Spicy miso ramen',
+    cuisine: 'japanese',
+    textures: ['saucy'],
+    flavors: ['spicy', 'savory'],
+    note: 'Chilli oil slicked over miso broth, corn and scallion.',
+    terms: ['ramen', 'miso', 'japanese'],
+  },
+  {
+    id: 'curry-katsu',
+    name: 'Katsu curry',
+    cuisine: 'japanese',
+    textures: ['saucy', 'crispy'],
+    flavors: ['savory', 'spicy'],
+    note: 'Fried cutlet drowned in glossy Japanese curry over rice.',
+    terms: ['katsu', 'curry', 'japanese'],
+  },
+  {
+    id: 'sushi',
+    name: 'Sushi & sashimi',
+    cuisine: 'japanese',
+    textures: ['soft'],
+    flavors: ['fresh'],
+    note: 'Cold fish, warm rice, wasabi that clears your head.',
+    terms: ['sushi', 'sashimi', 'japanese'],
+  },
+  {
+    id: 'gyoza',
+    name: 'Gyoza',
+    cuisine: 'japanese',
+    textures: ['soft', 'crispy'],
+    flavors: ['savory'],
+    note: 'Steamed on top, lacquered and crisp on the bottom.',
+    terms: ['gyoza', 'dumpling', 'japanese'],
+  },
+  {
+    id: 'okonomiyaki',
+    name: 'Okonomiyaki',
+    cuisine: 'japanese',
+    textures: ['soft', 'saucy'],
+    flavors: ['savory', 'cheesy'],
+    note: 'Cabbage pancake under sauce, mayo and dancing bonito.',
+    terms: ['okonomiyaki', 'japanese'],
+  },
+  {
+    id: 'udon',
+    name: 'Udon',
+    cuisine: 'japanese',
+    textures: ['soft', 'saucy'],
+    flavors: ['savory', 'fresh'],
+    note: 'Fat chewy noodles in clean dashi, spring onion on top.',
+    terms: ['udon', 'noodle', 'japanese'],
+  },
+
+  // ---- Mexican ----
+  {
+    id: 'tacos-al-pastor',
+    name: 'Tacos al pastor',
+    cuisine: 'mexican',
+    textures: ['soft', 'crispy'],
+    flavors: ['spicy', 'savory'],
+    note: 'Chilli-marinated pork off the trompo, pineapple, onion, lime.',
+    terms: ['taco', 'pastor', 'mexican', 'taqueria'],
+  },
+  {
+    id: 'tostada',
+    name: 'Tostada',
+    cuisine: 'mexican',
+    textures: ['crunchy'],
+    flavors: ['fresh', 'spicy'],
+    note: 'Flat fried tortilla piled with cold, bright toppings.',
+    terms: ['tostada', 'taco', 'mexican'],
+  },
+  {
+    id: 'nachos',
+    name: 'Loaded nachos',
+    cuisine: 'mexican',
+    textures: ['crunchy', 'saucy'],
+    flavors: ['cheesy', 'spicy'],
+    note: 'Chips engineered to survive queso, jalapeño and crema.',
+    terms: ['nachos', 'mexican', 'tex-mex'],
+  },
+  {
+    id: 'quesadilla',
+    name: 'Quesadilla',
+    cuisine: 'mexican',
+    textures: ['crispy', 'soft'],
+    flavors: ['cheesy'],
+    note: 'Griddled tortilla, molten cheese pull, salsa on the side.',
+    terms: ['quesadilla', 'mexican', 'taqueria'],
+  },
+  {
+    id: 'birria',
+    name: 'Birria tacos & consommé',
+    cuisine: 'mexican',
+    textures: ['saucy', 'crispy'],
+    flavors: ['savory', 'spicy'],
+    note: 'Fat-fried tortilla, stewed beef, a cup of broth for dunking.',
+    terms: ['birria', 'taco', 'mexican'],
+  },
+  {
+    id: 'enchiladas',
+    name: 'Enchiladas',
+    cuisine: 'mexican',
+    textures: ['saucy', 'soft'],
+    flavors: ['cheesy', 'spicy'],
+    note: 'Rolled tortillas under red chilli sauce and melted cheese.',
+    terms: ['enchilada', 'mexican'],
+  },
+  {
+    id: 'ceviche',
+    name: 'Ceviche',
+    cuisine: 'mexican',
+    textures: ['soft'],
+    flavors: ['fresh', 'spicy'],
+    note: 'Lime-cured fish, red onion, coriander, cold and sharp.',
+    terms: ['ceviche', 'mariscos', 'mexican'],
+  },
+  {
+    id: 'burrito',
+    name: 'Burrito',
+    cuisine: 'mexican',
+    textures: ['soft', 'saucy'],
+    flavors: ['savory', 'cheesy'],
+    note: 'A whole meal in a foil sleeve. Structural integrity optional.',
+    terms: ['burrito', 'mexican'],
+  },
+  {
+    id: 'elote',
+    name: 'Elote',
+    cuisine: 'mexican',
+    textures: ['crunchy', 'saucy'],
+    flavors: ['cheesy', 'fresh'],
+    note: 'Charred corn, mayo, cotija, chilli powder, lime.',
+    terms: ['elote', 'mexican', 'taqueria'],
+  },
+  {
+    id: 'chilaquiles',
+    name: 'Chilaquiles',
+    cuisine: 'mexican',
+    textures: ['crunchy', 'saucy'],
+    flavors: ['spicy', 'cheesy'],
+    note: 'Tortilla chips half-softened in salsa, egg on top.',
+    terms: ['chilaquiles', 'mexican'],
+  },
+
+  // ---- Mediterranean ----
+  {
+    id: 'falafel',
+    name: 'Falafel wrap',
+    cuisine: 'mediterranean',
+    textures: ['crunchy', 'soft'],
+    flavors: ['fresh', 'savory'],
+    note: 'Crackly herb-green fritters, tahini, pickles, warm bread.',
+    terms: ['falafel', 'lebanese', 'middle_eastern'],
+  },
+  {
+    id: 'mixed-grill',
+    name: 'Mixed grill',
+    cuisine: 'mediterranean',
+    textures: ['crispy', 'soft'],
+    flavors: ['savory', 'spicy'],
+    note: 'Charred lamb and chicken off the skewer, flatbread underneath.',
+    terms: ['kebab', 'grill', 'turkish', 'greek'],
+  },
+  {
+    id: 'shawarma',
+    name: 'Shawarma',
+    cuisine: 'mediterranean',
+    textures: ['soft', 'saucy'],
+    flavors: ['savory', 'spicy'],
+    note: 'Shaved spit-roast meat, garlic sauce, chilli, tight wrap.',
+    terms: ['shawarma', 'kebab', 'middle_eastern'],
+  },
+  {
+    id: 'saganaki',
+    name: 'Saganaki',
+    cuisine: 'mediterranean',
+    textures: ['crispy'],
+    flavors: ['cheesy'],
+    note: 'Pan-seared cheese with a crust, lemon squeezed over.',
+    terms: ['greek', 'meze', 'taverna'],
+  },
+  {
+    id: 'margherita',
+    name: 'Wood-fired pizza',
+    cuisine: 'mediterranean',
+    textures: ['soft', 'crispy'],
+    flavors: ['cheesy'],
+    note: 'Blistered leopard-spot crust, tomato, torn mozzarella.',
+    terms: ['pizza', 'italian', 'pizzeria'],
+  },
+  {
+    id: 'cacio-e-pepe',
+    name: 'Cacio e pepe',
+    cuisine: 'mediterranean',
+    textures: ['saucy'],
+    flavors: ['cheesy', 'savory'],
+    note: 'Pecorino and black pepper emulsified into a glossy cling.',
+    terms: ['pasta', 'italian', 'trattoria'],
+  },
+  {
+    id: 'greek-salad',
+    name: 'Greek salad',
+    cuisine: 'mediterranean',
+    textures: ['crunchy'],
+    flavors: ['fresh', 'cheesy'],
+    note: 'Cucumber, tomato, olives, a slab of feta, good oil.',
+    terms: ['greek', 'salad', 'taverna'],
+  },
+  {
+    id: 'mezze',
+    name: 'Mezze spread',
+    cuisine: 'mediterranean',
+    textures: ['soft', 'saucy'],
+    flavors: ['fresh', 'savory'],
+    note: 'Hummus, baba ganoush, warm pita, olive oil pooled on top.',
+    terms: ['meze', 'mezze', 'lebanese', 'middle_eastern'],
+  },
+  {
+    id: 'arancini',
+    name: 'Arancini',
+    cuisine: 'mediterranean',
+    textures: ['crispy', 'crunchy'],
+    flavors: ['cheesy', 'savory'],
+    note: 'Fried risotto spheres with a mozzarella core.',
+    terms: ['arancini', 'italian', 'sicilian'],
+  },
+  {
+    id: 'shakshuka',
+    name: 'Shakshuka',
+    cuisine: 'mediterranean',
+    textures: ['saucy', 'soft'],
+    flavors: ['spicy', 'fresh'],
+    note: 'Eggs poached in cumin-spiked tomato, bread for mopping.',
+    terms: ['shakshuka', 'middle_eastern', 'israeli'],
+  },
+
+  // ---- American ----
+  {
+    id: 'smash-burger',
+    name: 'Smash burger',
+    cuisine: 'american',
+    textures: ['crispy', 'soft'],
+    flavors: ['cheesy', 'savory'],
+    note: 'Lacy browned edges, American cheese, squishy potato bun.',
+    terms: ['burger', 'american', 'diner'],
+  },
+  {
+    id: 'fried-chicken',
+    name: 'Fried chicken',
+    cuisine: 'american',
+    textures: ['crunchy', 'crispy'],
+    flavors: ['savory', 'spicy'],
+    note: 'Craggy seasoned crust, brined meat, hot sauce optional.',
+    terms: ['chicken', 'fried_chicken', 'american'],
+  },
+  {
+    id: 'nashville-hot',
+    name: 'Nashville hot chicken',
+    cuisine: 'american',
+    textures: ['crispy', 'crunchy'],
+    flavors: ['spicy'],
+    note: 'Cayenne lacquer, white bread, pickles to put the fire out.',
+    terms: ['chicken', 'hot chicken', 'american'],
+  },
+  {
+    id: 'bbq-ribs',
+    name: 'BBQ ribs',
+    cuisine: 'american',
+    textures: ['saucy', 'soft'],
+    flavors: ['savory', 'spicy'],
+    note: 'Smoke ring, sticky bark, sauce on your knuckles.',
+    terms: ['barbecue', 'bbq', 'ribs', 'american'],
+  },
+  {
+    id: 'mac-and-cheese',
+    name: 'Mac & cheese',
+    cuisine: 'american',
+    textures: ['saucy', 'soft'],
+    flavors: ['cheesy'],
+    note: 'Béchamel-thick cheese sauce, baked crumb lid.',
+    terms: ['mac', 'bbq', 'diner', 'american'],
+  },
+  {
+    id: 'buffalo-wings',
+    name: 'Buffalo wings',
+    cuisine: 'american',
+    textures: ['crispy', 'saucy'],
+    flavors: ['spicy'],
+    note: 'Vinegar heat, butter shine, blue cheese to cool it down.',
+    terms: ['wings', 'chicken', 'american', 'sports_bar'],
+  },
+  {
+    id: 'philly',
+    name: 'Philly cheesesteak',
+    cuisine: 'american',
+    textures: ['soft', 'saucy'],
+    flavors: ['cheesy', 'savory'],
+    note: 'Chopped ribeye, onions, cheese welded into a hoagie.',
+    terms: ['cheesesteak', 'sandwich', 'american'],
+  },
+  {
+    id: 'loaded-fries',
+    name: 'Loaded fries',
+    cuisine: 'american',
+    textures: ['crispy', 'crunchy'],
+    flavors: ['cheesy'],
+    note: 'Fries under cheese sauce, bacon and scallion. Eat fast.',
+    terms: ['fries', 'burger', 'diner', 'american'],
+  },
+  {
+    id: 'cobb-salad',
+    name: 'Cobb salad',
+    cuisine: 'american',
+    textures: ['crunchy'],
+    flavors: ['fresh', 'savory'],
+    note: 'Cold crisp lettuce, egg, bacon, avocado in tidy rows.',
+    terms: ['salad', 'diner', 'american'],
+  },
+  {
+    id: 'lobster-roll',
+    name: 'Lobster roll',
+    cuisine: 'american',
+    textures: ['soft', 'crunchy'],
+    flavors: ['fresh', 'savory'],
+    note: 'Cold lobster, lemon mayo, celery, buttered griddled bun.',
+    terms: ['seafood', 'lobster', 'american'],
+  },
+];
+
+/** Copy shown on the results screen, keyed by `texture-flavor`. */
+export const DIAGNOSES = {
+  'crunchy-cheesy': 'Textural boredom with a dairy deficiency.',
+  'crunchy-spicy': 'You want to be woken up. Twice.',
+  'crunchy-savory': 'Classic snack hunger — salt and noise.',
+  'crunchy-fresh': 'Your body is asking for something raw and cold.',
+  'crispy-cheesy': 'Deep-fried comfort seeking. No notes.',
+  'crispy-spicy': 'Heat-and-crunch craving. Order the sauce on the side. Or don\'t.',
+  'crispy-savory': 'Golden-brown deficiency. Highly treatable.',
+  'crispy-fresh': 'You want fried food but with a conscience. Get a lemon wedge.',
+  'soft-cheesy': 'Full comfort collapse. Melted cheese is the cure.',
+  'soft-spicy': 'Gentle food, loud seasoning. A wrap situation.',
+  'soft-savory': 'Low-effort, high-umami. You are tired and you want brown food.',
+  'soft-fresh': 'You want to feel good afterwards. Rare, but valid.',
+  'saucy-cheesy': 'You want a spoon and no regrets.',
+  'saucy-spicy': 'Broth-and-chilli hunger. Sinus clearing imminent.',
+  'saucy-savory': 'Deep bowl energy. Something simmered for hours.',
+  'saucy-fresh': 'Bright and brothy. Herbs, citrus, heat.',
+};
