@@ -48,10 +48,11 @@ npm test           # node --test — unit tests for the pure modules
    trait — the first tag in its list. Gyoza is soft before it is crispy, so a
    craving for crispy reaches tonkatsu first. The top three are shown, with
    the runner-up cuisines offered below as an override.
-4. **Reveal** — a short full-screen moment shuffles the cuisines and lands on
-   the chosen one. Since the app decides for you, the decision has to be seen
-   being made, or it reads as a label that was always there. Tap to skip, and
-   it shortens itself under `prefers-reduced-motion`.
+4. **Reveal** — a full-screen moment (~4.7s) shuffles the cuisines, decelerating
+   into the chosen one like a wheel coming to rest, then bursts. Since the app
+   decides for you, the decision has to be seen being made, or it reads as a
+   label that was always there. Tap or press any key to skip, and it collapses
+   to ~650ms with no confetti under `prefers-reduced-motion`.
 5. **Location** — requested automatically once the reveal ends, via the
    browser's Geolocation API; Nominatim handles typed place names.
 6. **Venues** — an Overpass query pulls restaurants, fast food, cafés, bars and

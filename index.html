@@ -114,7 +114,12 @@
   <!-- Reveal overlay: shown between the last answer and the results. -->
   <div class="reveal" id="reveal" hidden aria-hidden="true">
     <div class="reveal__inner" role="status" aria-live="polite">
-      <div class="reveal__emoji" id="reveal-emoji" aria-hidden="true">🍜</div>
+      <div class="reveal__stage" aria-hidden="true">
+        <span class="reveal__ring"></span>
+        <span class="reveal__ring reveal__ring--late"></span>
+        <div class="reveal__burst" id="reveal-burst"></div>
+        <div class="reveal__emoji" id="reveal-emoji">🍜</div>
+      </div>
       <p class="reveal__caption" id="reveal-caption">Reading your craving…</p>
       <p class="reveal__cuisine" id="reveal-cuisine"></p>
       <p class="reveal__dish" id="reveal-dish"></p>
