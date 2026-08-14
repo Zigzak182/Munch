@@ -4,13 +4,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Munch — diagnose your hunger</title>
-  <meta name="description" content="Answer three questions about texture, flavour and cuisine, and Munch finds the closest places that fit." />
+  <meta name="description" content="Answer two questions about texture and flavour, and Munch picks a cuisine and finds the closest places that fit." />
   <meta name="color-scheme" content="light dark" />
   <meta name="theme-color" content="#12100f" />
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍜</text></svg>" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
   <link rel="stylesheet" href="assets/styles.css" />
 </head>
 <body>
@@ -58,6 +56,8 @@
           </div>
         </div>
 
+        <p class="notice" id="setup-notice" hidden></p>
+
         <div class="locator" id="locator">
           <div class="locator__actions">
             <button class="btn btn--primary" type="button" id="use-location">
@@ -104,10 +104,7 @@
     </main>
 
     <footer class="app__footer">
-      <p>
-        Venue data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>
-        via Overpass &amp; Nominatim. Your location never leaves your browser except to query those services.
-      </p>
+      <p id="attribution"></p>
     </footer>
   </div>
 
@@ -127,8 +124,7 @@
     </div>
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="munch.config.js"></script>
   <script type="module" src="src/app.js"></script>
 </body>
 </html>

@@ -11,7 +11,8 @@
 import { CUISINES, FLAVORS, TEXTURES } from './data.js';
 import { diagnose } from './diagnosis.js';
 import { LocationError, currentPosition, formatDistance, walkingMinutes } from './geo.js';
-import { PlacesError, findNearbyPlaces, geocode } from './places.js';
+import { PlacesError, activeProvider, findNearbyPlaces, geocode } from './places.js';
+import { hasGoogle } from './config.js';
 import { playReveal } from './reveal.js';
 import * as mapView from './map.js';
 
@@ -167,22 +168,33 @@ function renderSwap(result) {
 }
 
 const directionsUrl = (place) =>
-  `https://www.openstreetmap.org/directions?to=${place.lat}%2C${place.lon}`;
+  `https://www.google.com/maps/dir/?api=1&destination=${place.lat}%2C${place.lon}`;
 
 function badges(place) {
   const marks = [];
   if (place.cuisineMatch) marks.push('<span class="badge badge--match">cuisine match</span>');
   else if (place.nameMatch) marks.push('<span class="badge">likely match</span>');
+  if (place.openNow === true) marks.push('<span class="badge badge--open">open now</span>');
+  if (place.openNow === false) marks.push('<span class="badge badge--shut">closed</span>');
   if (place.takeaway) marks.push('<span class="badge">takeaway</span>');
   if (place.outdoorSeating) marks.push('<span class="badge">outdoor seating</span>');
   if (place.vegetarian) marks.push('<span class="badge">veg options</span>');
   return marks.join('');
 }
 
+/** Star rating with review count, when the provider supplies one. */
+function ratingHtml(place) {
+  if (typeof place.rating !== 'number') return '';
+  const count = place.ratingCount ? ` (${place.ratingCount.toLocaleString()})` : '';
+  const price = place.priceLevel ? ` · ${escapeHtml(place.priceLevel)}` : '';
+  return `<p class="place__rating"><span aria-hidden="true">★</span> ${place.rating.toFixed(1)}${count}${price}</p>`;
+}
+
 const popupHtml = (place) => `
   <strong>${escapeHtml(place.name)}</strong><br />
-  <span class="popup__meta">${escapeHtml(place.cuisine || place.amenity.replace('_', ' '))}
-  · ${formatDistance(place.distance)}</span><br />
+  <span class="popup__meta">${escapeHtml(place.typeLabel)} · ${formatDistance(place.distance)}${
+  typeof place.rating === 'number' ? ` · ★ ${place.rating.toFixed(1)}` : ''
+}</span><br />
   <a href="${directionsUrl(place)}" target="_blank" rel="noreferrer">Directions</a>
 `;
 
@@ -206,11 +218,12 @@ function renderList() {
         <span class="place__distance">${formatDistance(place.distance)}</span>
       </div>
       <p class="place__meta">
-        <span class="place__type">${escapeHtml(place.cuisine.replace(/[;,]/g, ' · ') || place.amenity.replace('_', ' '))}</span>
+        <span class="place__type">${escapeHtml(place.typeLabel)}</span>
         · ~${walkingMinutes(place.distance)} min walk
       </p>
+      ${ratingHtml(place)}
       ${place.address ? `<p class="place__meta">${escapeHtml(place.address)}</p>` : ''}
-      ${place.openingHours ? `<p class="place__hours">${escapeHtml(place.openingHours)}</p>` : ''}
+      ${place.hoursText ? `<p class="place__hours">${escapeHtml(place.hoursText)}</p>` : ''}
       <div class="place__badges">${badges(place)}</div>
       <div class="place__links">
         <a href="${directionsUrl(place)}" target="_blank" rel="noreferrer">Directions</a>
@@ -239,15 +252,22 @@ function renderResults() {
   renderList();
 
   if (mapView.isAvailable()) {
-    mapView.ensureMap($('map'));
-    mapView.renderPlaces(state.origin, state.places, popupHtml);
-    mapView.refresh();
+    setView(state.view);
+    // The map loads asynchronously; a failure leaves the list in charge.
+    mapView.ensureMap($('map'))
+      .then(() => mapView.renderPlaces(state.origin, state.places, popupHtml))
+      .catch((error) => {
+        showSetupNotice(error.message);
+        setView('list');
+      });
+  } else {
+    setView('list');
   }
-  setView(mapView.isAvailable() ? state.view : 'list');
 }
 
 function setView(view) {
-  state.view = view;
+  state.view = mapView.isAvailable() ? view : 'list';
+  view = state.view;
   $('map-panel').hidden = view !== 'map';
   $('list-panel').hidden = view !== 'list';
   document.querySelectorAll('.toggle__btn').forEach((button) => {
@@ -256,6 +276,25 @@ function setView(view) {
     button.setAttribute('aria-selected', String(active));
   });
   if (view === 'map') mapView.refresh();
+}
+
+/** Surface a configuration problem the user has to fix themselves. */
+function showSetupNotice(message) {
+  const notice = $('setup-notice');
+  notice.textContent = message;
+  notice.hidden = !message;
+}
+
+/**
+ * Credit whichever provider actually answered, and say plainly when the app
+ * is running in its reduced, keyless mode.
+ */
+function renderAttribution() {
+  const attribution = $('attribution');
+  attribution.innerHTML = activeProvider() === 'google'
+    ? 'Venue data and maps from Google. Your location is sent to Google to find nearby places, and is not stored by this app.'
+    : 'Venue data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>'
+      + ' via Overpass &amp; Nominatim. Add a Google Maps API key in <code>munch.config.js</code> for better coverage and a map.';
 }
 
 function setStatus(message, tone = 'info') {
@@ -340,6 +379,7 @@ async function search(origin, label) {
 
   try {
     const { places, radius } = await findNearbyPlaces(origin, {
+      googleTypes: cuisine.googleTypes,
       cuisineTags: cuisine.osmCuisines,
       nameTerms: terms,
       signal: controller.signal,
@@ -455,7 +495,12 @@ function bindEvents() {
 
 function init() {
   STEPS.slice(0, RESULTS).forEach(renderOptions);
+  renderAttribution();
   bindEvents();
+
+  if (!hasGoogle()) {
+    document.querySelector('.toggle')?.setAttribute('hidden', '');
+  }
   if (!restoreFromHash()) renderStep();
 }
 

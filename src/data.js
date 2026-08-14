@@ -23,9 +23,12 @@ export const FLAVORS = [
 ];
 
 /**
- * Step 3 — cuisine. `osmCuisines` are the values seen in OpenStreetMap's
- * `cuisine=*` tag; they are matched as whole words against the tag, which is
- * itself a semicolon-separated list (e.g. `cuisine=sushi;japanese`).
+ * Cuisines. No longer asked as a question — derived from the two answers —
+ * but still the thing that decides which kitchens we search for.
+ *
+ * `googleTypes` are Places API primary types, used for server-side filtering.
+ * `osmCuisines` are values seen in OpenStreetMap's `cuisine=*` tag, matched as
+ * whole words against a semicolon-separated list (e.g. `cuisine=sushi;japanese`).
  */
 export const CUISINES = [
   {
@@ -33,6 +36,7 @@ export const CUISINES = [
     label: 'Japanese',
     emoji: '🍱',
     blurb: 'Ramen, sushi, katsu',
+    googleTypes: ['japanese_restaurant', 'sushi_restaurant', 'ramen_restaurant'],
     osmCuisines: ['japanese', 'sushi', 'ramen', 'noodle', 'izakaya', 'donburi', 'udon', 'yakitori'],
   },
   {
@@ -40,6 +44,7 @@ export const CUISINES = [
     label: 'Mexican',
     emoji: '🌮',
     blurb: 'Tacos, burritos, salsa',
+    googleTypes: ['mexican_restaurant'],
     osmCuisines: ['mexican', 'taco', 'tacos', 'burrito', 'tex-mex', 'latin_american'],
   },
   {
@@ -47,6 +52,11 @@ export const CUISINES = [
     label: 'Mediterranean',
     emoji: '🫒',
     blurb: 'Mezze, grills, olive oil',
+    googleTypes: [
+      'mediterranean_restaurant', 'greek_restaurant', 'italian_restaurant',
+      'lebanese_restaurant', 'turkish_restaurant', 'middle_eastern_restaurant',
+      'spanish_restaurant', 'pizza_restaurant',
+    ],
     osmCuisines: [
       'mediterranean', 'greek', 'lebanese', 'turkish', 'italian', 'kebab',
       'falafel', 'shawarma', 'middle_eastern', 'spanish', 'tapas',
@@ -57,6 +67,10 @@ export const CUISINES = [
     label: 'American',
     emoji: '🍔',
     blurb: 'Burgers, BBQ, diners',
+    googleTypes: [
+      'american_restaurant', 'hamburger_restaurant', 'barbecue_restaurant',
+      'steak_house', 'sandwich_shop', 'diner',
+    ],
     osmCuisines: [
       'american', 'burger', 'barbecue', 'bbq', 'steak_house', 'diner',
       'sandwich', 'chicken', 'fried_chicken', 'wings',

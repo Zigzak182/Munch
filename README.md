@@ -17,22 +17,56 @@ the decision is easy to overrule — but you get an answer first.
 
 ## Running it
 
-No build step, no dependencies, no API keys. Any static server works — the app
-is plain ES modules, so it does need to be *served* rather than opened as a
-`file://` URL:
+No build step and no dependencies — plain ES modules, so the app just needs to
+be *served* rather than opened as a `file://` URL:
 
 ```bash
 npm start          # python3 -m http.server 8080
 # then open http://localhost:8080
+
+npm test           # node --test
 ```
 
-Geolocation requires a secure context, which means `https://` in production or
-`localhost` in development. If the browser denies location (or you're planning
-ahead for somewhere else), the results screen also takes a typed place name.
+Geolocation requires a secure context: `https://` in production, or
+`localhost` in development. If the browser denies location, the results screen
+also takes a typed place name.
 
-```bash
-npm test           # node --test — unit tests for the pure modules
+### Setting up Google
+
+Venues, ratings and the map come from Google Maps Platform. Paste a key into
+`munch.config.js` and redeploy:
+
+```js
+window.MUNCH_CONFIG = {
+  googleMapsApiKey: 'AIza…',
+  mapId: '',            // optional, for cloud-based map styling
+};
 ```
+
+Enable **Maps JavaScript API**, **Places API (New)** and **Geocoding API** on
+the project the key belongs to.
+
+**The key is public.** It ships to the browser, which is normal for Maps
+Platform keys but only safe if you restrict it:
+
+- *Application restrictions → Websites*: add your site, e.g.
+  `https://yourname.github.io/*`
+- *API restrictions*: limit it to the three APIs above
+- Set a **billing budget alert**, so a scraped key cannot quietly run up a bill
+
+An unrestricted key on a public site will eventually be found and used.
+
+Without a key the app still runs: it falls back to OpenStreetMap for venues
+and hides the map, since there is no basemap to draw. Coverage is patchier and
+there are no ratings, so this is a fallback rather than a mode to ship.
+
+### Cost
+
+Each search is one Nearby Search call. The requested field set includes
+ratings, price level, opening hours and contact details, which puts the call in
+the **Enterprise** SKU — the most expensive tier. Trim `FIELDS` in
+`src/providers/google.js` from the bottom up to drop into the cheaper Pro tier
+if a free allowance is the priority.
 
 ## How it works
 
@@ -55,51 +89,48 @@ npm test           # node --test — unit tests for the pure modules
    to ~650ms with no confetti under `prefers-reduced-motion`.
 5. **Location** — requested automatically once the reveal ends, via the
    browser's Geolocation API; Nominatim handles typed place names.
-6. **Venues** — a single Overpass query pulls restaurants, fast food, cafés,
-   bars and pubs within 5 km, matching two ways: places whose `cuisine` tag
-   fits, and places whose *name* hints at the dish (a taqueria rarely tags
-   itself). It widens to 15 km only when that finds nothing at all. Each
-   mirror gets 12 seconds before we move to the next.
-
-   The `out` statement must stay `out center` — the `tags` verbosity returns
-   ids and tags but drops coordinates, and since most venues are mapped as
-   single nodes rather than building outlines, that silently discards nearly
-   every real result. There is a test pinning this.
+6. **Venues** — one Places Nearby Search within 5 km, filtered server-side by
+   the cuisine's `includedPrimaryTypes` and ranked by distance, widening to
+   15 km only when it finds nothing at all. The OpenStreetMap fallback runs
+   the equivalent Overpass query when no key is configured.
 7. **Results** — ranked by match quality first, distance second, and shown as
    either a map or a sortable list. Every venue links out to directions.
 
 ## Data sources
 
-Venue data, geocoding and map tiles all come from
-[OpenStreetMap](https://www.openstreetmap.org/copyright) — via Overpass,
-Nominatim and the standard tile server. All three are free, keyless community
-services, which is why there is nothing to sign up for; it also means results
-are only as complete as OSM's coverage in your area, and that heavy use should
-be pointed at your own Overpass instance or a commercial provider. Requests go
-straight from the browser to those services; there is no backend and your
-coordinates are not stored anywhere.
+Venues, geocoding and the map come from **Google Maps Platform** (Places API
+New, Geocoding, Maps JavaScript). The **OpenStreetMap** stack — Overpass and
+Nominatim — remains as the keyless fallback.
 
-Coverage is genuinely uneven: dense cities are well tagged, and quieter areas
-may return little or nothing. When a search comes up empty the app says so
-rather than inventing places.
+There is no backend. Requests go straight from the browser to whichever
+provider is active, so your coordinates reach Google (or Overpass) but are
+never stored by this app.
+
+When a search comes up empty the app says so rather than inventing places.
 
 ## Layout
 
 ```
-index.html          markup for the three screens and the reveal overlay
-assets/styles.css   all styling — dark-first, light mode via prefers-color-scheme
-src/data.js         questions, cuisines and the dish catalogue
-src/diagnosis.js    scoring and ranking (pure)
-src/geo.js          haversine distance, formatting, geolocation wrapper
-src/reveal.js       the cuisine reveal overlay
-src/places.js       Overpass + Nominatim queries, venue ranking
-src/map.js          Leaflet wrapper; degrades to list-only if Leaflet is absent
-src/app.js          screen flow and DOM wiring
-tests/              node:test unit tests for the pure modules
+munch.config.js       your API key — the one file you edit to deploy
+index.html            markup for the three screens and the reveal overlay
+assets/styles.css     styling — dark-first, light via prefers-color-scheme
+src/data.js           questions, cuisines and the dish catalogue
+src/diagnosis.js      scoring and ranking (pure)
+src/geo.js            haversine distance, formatting, geolocation wrapper
+src/reveal.js         the cuisine reveal overlay
+src/config.js         reads the deployment config
+src/google.js         loads the Maps JS SDK once, and reports auth failures
+src/places.js         picks a provider
+src/places-shared.js  the shared place shape, ranking and errors
+src/providers/        google.js (primary) and osm.js (keyless fallback)
+src/map.js            Google Maps wrapper; no-ops without a key
+src/app.js            screen flow and DOM wiring
+tests/                node:test unit tests
 ```
 
-Leaflet is loaded from a CDN with subresource integrity. If it fails to load,
-the map is skipped and results fall back to the list view.
+Both providers normalise to the same place shape, so `app.js` never learns
+which one answered. If the Maps SDK fails to load — bad key, blocked script —
+the failure is shown on the results screen and the list carries on.
 
 ## Adding to the catalogue
 

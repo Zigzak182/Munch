@@ -1,9 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-  SEARCH_RADIUS, WIDE_RADIUS, buildOverpassQuery, findNearbyPlaces, normalizeElement, rankPlaces,
-} from '../src/places.js';
+import { SEARCH_RADIUS, WIDE_RADIUS, rankPlaces } from '../src/places-shared.js';
+import { buildOverpassQuery, findNearbyPlaces, normalizeElement } from '../src/providers/osm.js';
 
 const ORIGIN = { lat: 51.5074, lon: -0.1278 };
 
@@ -74,6 +73,9 @@ test('normalizeElement flattens tags and resolves way centres', () => {
   assert.equal(place.lat, 51.51);
   assert.equal(place.address, '12 Old Street, London');
   assert.equal(place.website, 'https://example.com');
+  assert.deepEqual(place.types, ['ramen', 'japanese']);
+  assert.equal(place.hoursText, 'Mo-Su 11:00-22:00');
+  assert.equal(place.source, 'osm');
   assert.equal(place.takeaway, true);
   assert.equal(place.vegetarian, false);
 });
@@ -85,14 +87,14 @@ test('normalizeElement drops unnamed or unpositioned elements', () => {
 
 test('ranking puts cuisine matches first, then name hints, then distance', () => {
   const places = [
-    { id: 'a', name: 'Far Sushi Co', lat: 51.5164, lon: -0.1278, cuisine: 'sushi', amenity: 'restaurant' },
-    { id: 'b', name: 'Corner Cafe', lat: 51.5075, lon: -0.1278, cuisine: 'coffee_shop', amenity: 'cafe' },
-    { id: 'c', name: 'Ramen Spot', lat: 51.5095, lon: -0.1278, cuisine: '', amenity: 'restaurant' },
-    { id: 'd', name: 'Near Izakaya', lat: 51.5084, lon: -0.1278, cuisine: 'japanese;bar', amenity: 'bar' },
+    { id: 'a', name: 'Far Sushi Co', lat: 51.5164, lon: -0.1278, types: ['sushi'] },
+    { id: 'b', name: 'Corner Cafe', lat: 51.5075, lon: -0.1278, types: ['coffee_shop'] },
+    { id: 'c', name: 'Ramen Spot', lat: 51.5095, lon: -0.1278, types: [] },
+    { id: 'd', name: 'Near Izakaya', lat: 51.5084, lon: -0.1278, types: ['japanese', 'bar'] },
   ];
 
   const ranked = rankPlaces(places, ORIGIN, {
-    cuisineTags: ['japanese', 'sushi'],
+    matchTypes: ['japanese', 'sushi'],
     nameTerms: ['ramen'],
   });
 
@@ -105,9 +107,9 @@ test('ranking puts cuisine matches first, then name hints, then distance', () =>
 
 test('cuisine matching is exact per tag, not a substring', () => {
   const places = [
-    { id: 'a', name: 'Pan Asian', lat: 51.5075, lon: -0.1278, cuisine: 'asian', amenity: 'restaurant' },
+    { id: 'a', name: 'Pan Asian', lat: 51.5075, lon: -0.1278, types: ['asian'] },
   ];
-  const [ranked] = rankPlaces(places, ORIGIN, { cuisineTags: ['japanese'], nameTerms: [] });
+  const [ranked] = rankPlaces(places, ORIGIN, { matchTypes: ['japanese'], nameTerms: [] });
   assert.equal(ranked.cuisineMatch, false);
   assert.equal(ranked.tier, 2);
 });

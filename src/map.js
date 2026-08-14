@@ -1,89 +1,127 @@
 /**
- * Thin wrapper around Leaflet so the rest of the app never touches the global
- * `L`. Leaflet is loaded from a CDN in index.html; if it failed to load, every
- * function here degrades to a no-op and the list view carries the results.
+ * Google Maps wrapper.
+ *
+ * The rest of the app never touches `google.maps` directly, and every export
+ * is safe to call when the SDK is unavailable — without a configured key the
+ * map simply never appears and the list carries the results.
  */
 
-const TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+import { hasGoogle, mapId } from './config.js';
+import { loadGoogle } from './google.js';
 
 let map = null;
-let markerLayer = null;
-const markersById = new Map();
+let mapsApi = null;
+let infoWindow = null;
+let AdvancedMarkerElement = null;
+let renderPopup = null;
+const entriesById = new Map();
+let markers = [];
 
-/** True when the Leaflet bundle is present. */
-export const isAvailable = () => typeof window !== 'undefined' && typeof window.L !== 'undefined';
+/** True when a map could be shown at all. */
+export const isAvailable = () => hasGoogle();
 
-/** Create the map once; later calls just return the existing instance. */
-export function ensureMap(container) {
-  if (!isAvailable() || map) return map;
+/**
+ * Create the map once. Returns null when the SDK cannot be loaded, so callers
+ * can fall back to the list without special-casing.
+ */
+export async function ensureMap(container) {
+  if (map) return map;
+  if (!hasGoogle()) return null;
 
-  map = window.L.map(container, { zoomControl: true, scrollWheelZoom: true });
-  window.L.tileLayer(TILE_URL, { maxZoom: 19, attribution: TILE_ATTRIBUTION }).addTo(map);
-  markerLayer = window.L.layerGroup().addTo(map);
+  mapsApi = await loadGoogle();
+  const [{ Map, InfoWindow }, marker] = await Promise.all([
+    mapsApi.importLibrary('maps'),
+    mapsApi.importLibrary('marker'),
+  ]);
+
+  AdvancedMarkerElement = marker.AdvancedMarkerElement;
+  map = new Map(container, {
+    center: { lat: 0, lng: 0 },
+    zoom: 15,
+    mapId: mapId(),
+    mapTypeControl: false,
+    streetViewControl: false,
+    fullscreenControl: false,
+    clickableIcons: false,
+  });
+  infoWindow = new InfoWindow();
+
   return map;
 }
 
-const icon = (className) => window.L.divIcon({
-  className: `pin ${className}`,
-  iconSize: [22, 22],
-  iconAnchor: [11, 11],
-});
+/** A small coloured dot, matching the pin styling the app used before. */
+function pin(className) {
+  const element = document.createElement('div');
+  element.className = `pin ${className}`;
+  return element;
+}
 
-const escapeHtml = (value = '') => String(value).replace(/[&<>"']/g, (char) => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-}[char]));
+function clearMarkers() {
+  markers.forEach((marker) => { marker.map = null; });
+  markers = [];
+  entriesById.clear();
+}
+
+/** Open a venue's popup. Shared by marker clicks and `focusPlace`. */
+function openPopup(marker, place) {
+  infoWindow.setContent(renderPopup ? renderPopup(place) : place.name);
+  infoWindow.open({ map, anchor: marker });
+}
 
 /**
  * Draw the "you are here" dot plus one pin per venue, and fit the viewport to
  * everything on screen.
  *
  * @param {{lat:number, lon:number}} origin
- * @param {object[]} places ranked venues, as returned by `findNearbyPlaces`
+ * @param {object[]} places ranked venues
  * @param {(place: object) => string} popupHtml renderer for a marker popup
  */
-export function renderPlaces(origin, places, popupHtml) {
-  if (!map || !markerLayer) return;
+export async function renderPlaces(origin, places, popupHtml) {
+  if (!map || !AdvancedMarkerElement) return;
 
-  markerLayer.clearLayers();
-  markersById.clear();
+  renderPopup = popupHtml;
+  clearMarkers();
 
-  window.L.circleMarker([origin.lat, origin.lon], {
-    radius: 7,
-    color: '#ffffff',
-    weight: 2,
-    fillColor: '#2f6bff',
-    fillOpacity: 1,
-  }).addTo(markerLayer).bindPopup('You are here');
+  const here = new AdvancedMarkerElement({
+    map,
+    position: { lat: origin.lat, lng: origin.lon },
+    content: pin('pin--here'),
+    title: 'You are here',
+  });
+  markers.push(here);
 
   places.forEach((place) => {
-    const marker = window.L.marker([place.lat, place.lon], {
-      icon: icon(place.tier === 0 ? 'pin--match' : 'pin--near'),
+    const marker = new AdvancedMarkerElement({
+      map,
+      position: { lat: place.lat, lng: place.lon },
+      content: pin(place.tier === 0 ? 'pin--match' : 'pin--near'),
       title: place.name,
-      alt: place.name,
     });
-    marker.bindPopup(popupHtml ? popupHtml(place) : escapeHtml(place.name));
-    marker.addTo(markerLayer);
-    markersById.set(place.id, marker);
+    marker.addListener('click', () => openPopup(marker, place));
+    markers.push(marker);
+    entriesById.set(place.id, { marker, place });
   });
 
-  const points = [[origin.lat, origin.lon], ...places.map((place) => [place.lat, place.lon])];
-  if (points.length > 1) {
-    map.fitBounds(window.L.latLngBounds(points).pad(0.15), { maxZoom: 16 });
+  const bounds = new mapsApi.LatLngBounds();
+  bounds.extend({ lat: origin.lat, lng: origin.lon });
+  places.forEach((place) => bounds.extend({ lat: place.lat, lng: place.lon }));
+
+  if (places.length > 0) {
+    map.fitBounds(bounds, 48);
   } else {
-    map.setView([origin.lat, origin.lon], 15);
+    map.setCenter({ lat: origin.lat, lng: origin.lon });
+    map.setZoom(15);
   }
 }
 
 /** Centre on one venue and open its popup — used when a list row is clicked. */
 export function focusPlace(id) {
-  const marker = markersById.get(id);
-  if (!map || !marker) return;
-  map.setView(marker.getLatLng(), Math.max(map.getZoom(), 16), { animate: true });
-  marker.openPopup();
+  const entry = entriesById.get(id);
+  if (!map || !entry) return;
+  map.panTo(entry.marker.position);
+  if (map.getZoom() < 16) map.setZoom(16);
+  openPopup(entry.marker, entry.place);
 }
 
-/** Leaflet mis-measures a container that was hidden when created. */
-export function refresh() {
-  if (map) map.invalidateSize();
-}
+/** Google resizes itself; kept so callers do not need to know that. */
+export function refresh() {}
