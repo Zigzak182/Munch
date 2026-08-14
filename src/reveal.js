@@ -16,21 +16,48 @@ import { CUISINES } from './data.js';
 const SHUFFLE = CUISINES.map((cuisine) => cuisine.emoji);
 
 /**
- * Roughly 3.9s end to end: long enough to read the cuisine, short enough to
+ * Roughly 4.6s end to end: long enough to read the cuisine, short enough to
  * sit through more than once. The hold carries most of it — the landing is
  * the part worth seeing, not the shuffle.
  */
 const TIMING = {
-  shuffleStep: 145,
-  shuffle: 1500,
-  hold: 2100,
+  shuffle: 1700,
+  hold: 2600,
+  /** Shuffle interval at the start and end — it decelerates between them. */
+  stepFrom: 65,
+  stepTo: 300,
 };
 
 const REDUCED = {
-  shuffleStep: 0,
   shuffle: 150,
   hold: 450,
+  stepFrom: 0,
+  stepTo: 0,
 };
+
+/** Confetti thrown when the cuisine lands. */
+const CONFETTI = 18;
+
+/**
+ * Interval schedule for the shuffle, easing from `stepFrom` to `stepTo` so it
+ * slows into the answer like a wheel coming to rest. Returns the delay before
+ * each emoji change, together spanning roughly `duration`.
+ */
+export function shuffleSchedule(duration, { stepFrom, stepTo }) {
+  if (stepFrom <= 0) return [];
+
+  const delays = [];
+  let elapsed = 0;
+  let delay = stepFrom;
+
+  while (elapsed + delay < duration) {
+    delays.push(delay);
+    elapsed += delay;
+    delay = Math.min(stepTo, delay * 1.16);
+  }
+
+  return delays;
+}
 
 const $ = (id) => document.getElementById(id);
 
@@ -52,16 +79,40 @@ export function playReveal(result) {
   const caption = $('reveal-caption');
   const cuisineName = $('reveal-cuisine');
   const dishName = $('reveal-dish');
+  const burst = $('reveal-burst');
 
   return new Promise((resolve) => {
+    /** Shuffle ticks and the landing, all cleared when the reveal lands. */
     const timers = [];
+    /** Kept apart from `timers` so landing does not cancel the dismissal. */
+    let holdTimer = null;
     let settled = false;
 
     const cleanup = () => {
       timers.forEach(clearTimeout);
-      clearInterval(shuffleTimer);
+      clearTimeout(holdTimer);
       overlay.removeEventListener('click', skip);
       window.removeEventListener('keydown', skip);
+    };
+
+    /** Scatter dots outward from the emoji. Pure CSS once created. */
+    const throwConfetti = () => {
+      if (!burst) return;
+      burst.innerHTML = '';
+
+      for (let i = 0; i < CONFETTI; i += 1) {
+        const angle = (i / CONFETTI) * Math.PI * 2 + Math.random() * 0.4;
+        const distance = 115 + Math.random() * 105;
+        const piece = document.createElement('span');
+        piece.className = 'confetti';
+        piece.style.setProperty('--x', `${Math.cos(angle) * distance}px`);
+        piece.style.setProperty('--y', `${Math.sin(angle) * distance}px`);
+        piece.style.setProperty('--spin', `${Math.round(Math.random() * 540 - 270)}deg`);
+        piece.style.setProperty('--delay', `${Math.round(Math.random() * 120)}ms`);
+        piece.style.setProperty('--size', `${6 + Math.round(Math.random() * 5)}px`);
+        if (i % 3 === 0) piece.classList.add('confetti--alt');
+        burst.append(piece);
+      }
     };
 
     /** Dismiss the overlay and resolve — safe to call more than once. */
@@ -90,12 +141,14 @@ export function playReveal(result) {
     };
 
     const land = () => {
-      clearInterval(shuffleTimer);
+      timers.forEach(clearTimeout);
+      timers.length = 0;
       overlay.dataset.phase = 'landed';
       emoji.textContent = result.cuisine.emoji;
       caption.textContent = 'Your diagnosis';
       cuisineName.textContent = result.cuisine.label;
       dishName.textContent = result.matches[0]?.name ?? '';
+      if (!prefersReducedMotion()) throwConfetti();
     };
 
     // --- open -------------------------------------------------------------
@@ -106,23 +159,27 @@ export function playReveal(result) {
     cuisineName.textContent = '';
     dishName.textContent = '';
     emoji.textContent = SHUFFLE[0];
+    if (burst) burst.innerHTML = '';
 
     // Force a reflow so the transition runs from the closed state.
     void overlay.offsetWidth;
     overlay.classList.add('is-open');
 
+    // Each tick is scheduled at its own delay so the shuffle can decelerate.
     let index = 0;
-    const shuffleTimer = timing.shuffleStep > 0
-      ? setInterval(() => {
+    let elapsed = 0;
+    shuffleSchedule(timing.shuffle, timing).forEach((delay) => {
+      elapsed += delay;
+      timers.push(setTimeout(() => {
         index = (index + 1) % SHUFFLE.length;
         emoji.textContent = SHUFFLE[index];
-      }, timing.shuffleStep)
-      : null;
+      }, elapsed));
+    });
 
     overlay.addEventListener('click', skip);
     window.addEventListener('keydown', skip);
 
     timers.push(setTimeout(land, timing.shuffle));
-    timers.push(setTimeout(finish, timing.shuffle + timing.hold));
+    holdTimer = setTimeout(finish, timing.shuffle + timing.hold);
   });
 }

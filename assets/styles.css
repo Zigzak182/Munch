@@ -347,15 +347,82 @@ a { color: var(--accent); }
   text-align: center;
 }
 
+.reveal__stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: clamp(140px, 42vw, 200px);
+  height: clamp(140px, 42vw, 200px);
+}
+
 .reveal__emoji {
   font-size: clamp(64px, 18vw, 104px);
   line-height: 1.1;
   animation: bob 1.15s ease-in-out infinite;
 }
 
-.reveal[data-phase="landed"] .reveal__emoji {
-  animation: land 0.6s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+/* Rings and confetti fire once, on landing. */
+.reveal__ring {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  opacity: 0;
 }
+
+.reveal[data-phase="landed"] .reveal__ring { animation: ring 900ms ease-out both; }
+.reveal[data-phase="landed"] .reveal__ring--late { animation-delay: 180ms; }
+
+@keyframes ring {
+  0% { opacity: 0.75; transform: scale(0.35); }
+  100% { opacity: 0; transform: scale(2.4); }
+}
+
+.reveal__burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.confetti {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--size, 8px);
+  height: var(--size, 8px);
+  border-radius: 2px;
+  background: var(--accent);
+  animation: burst 950ms cubic-bezier(0.15, 0.7, 0.3, 1) var(--delay, 0ms) both;
+}
+
+.confetti--alt { background: var(--text); opacity: 0.55; border-radius: 50%; }
+
+@keyframes burst {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(0); }
+  18% { opacity: 1; }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y)))
+      scale(1) rotate(var(--spin, 180deg));
+  }
+}
+
+.reveal[data-phase="landed"] .reveal__emoji {
+  animation: land 0.7s cubic-bezier(0.2, 1.5, 0.35, 1) both;
+}
+
+/* A warm wash behind the answer, so landing changes the whole screen. */
+.reveal[data-phase="landed"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(60% 45% at 50% 42%, var(--accent-soft), transparent 70%);
+  animation: wash 700ms ease both;
+  pointer-events: none;
+}
+
+@keyframes wash { from { opacity: 0; } to { opacity: 1; } }
 
 @keyframes bob {
   0%, 100% { transform: translateY(0) scale(1); }
@@ -363,7 +430,8 @@ a { color: var(--accent); }
 }
 
 @keyframes land {
-  0% { transform: scale(0.5) rotate(-8deg); opacity: 0.4; }
+  0% { transform: scale(0.45) rotate(-10deg); opacity: 0.35; }
+  60% { transform: scale(1.12) rotate(3deg); opacity: 1; }
   100% { transform: scale(1) rotate(0); opacity: 1; }
 }
 
@@ -386,10 +454,8 @@ a { color: var(--accent); }
 
 .reveal__dish { margin: 0; font-size: 18px; color: var(--text-muted); }
 
-.reveal[data-phase="landed"] .reveal__cuisine,
-.reveal[data-phase="landed"] .reveal__dish {
-  animation: rise 0.55s ease both 0.1s;
-}
+.reveal[data-phase="landed"] .reveal__cuisine { animation: rise 0.55s ease both 0.14s; }
+.reveal[data-phase="landed"] .reveal__dish { animation: rise 0.55s ease both 0.3s; }
 
 @keyframes rise {
   from { opacity: 0; transform: translateY(10px); }
