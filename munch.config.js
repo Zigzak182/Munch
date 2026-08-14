@@ -19,7 +19,7 @@
  */
 window.MUNCH_CONFIG = {
   /** Google Maps Platform API key. Leave empty to run without Google. */
-  googleMapsApiKey: '',
+  googleMapsApiKey: 'AIzaSyAgzQbVlTCiPP0zL-Y_NPdKj3yOmNNYjqc',
 
   /**
    * Optional Map ID, used for cloud-based map styling. Leave empty to use
