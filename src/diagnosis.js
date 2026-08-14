@@ -18,18 +18,31 @@ export function findOption(options, id) {
 }
 
 /**
+ * Bonus for matching a dish's *defining* trait — the first entry in its
+ * `textures`/`flavors` list. Gyoza is soft before it is crispy, so a craving
+ * for "crispy" should reach tonkatsu first even though both are tagged crispy.
+ */
+const WEIGHT_PRIMARY = 1;
+
+/**
  * Score one dish against the answers.
  *
  * Cuisine is weighted highest because it is the only answer that also
- * constrains which venues we can realistically send someone to. A dish scores
- * on texture and flavour independently, so a near-miss still ranks above an
- * unrelated dish.
+ * constrains which venues we can realistically send someone to. Texture and
+ * flavour score independently, so a near-miss still ranks above an unrelated
+ * dish, and each pays a bonus when it matches the dish's leading tag.
  */
 export function scoreDish(dish, { texture, flavor, cuisine }) {
   let score = 0;
   if (cuisine && dish.cuisine === cuisine) score += WEIGHT_CUISINE;
-  if (texture && dish.textures.includes(texture)) score += WEIGHT_TEXTURE;
-  if (flavor && dish.flavors.includes(flavor)) score += WEIGHT_FLAVOR;
+
+  if (texture && dish.textures.includes(texture)) {
+    score += WEIGHT_TEXTURE + (dish.textures[0] === texture ? WEIGHT_PRIMARY : 0);
+  }
+  if (flavor && dish.flavors.includes(flavor)) {
+    score += WEIGHT_FLAVOR + (dish.flavors[0] === flavor ? WEIGHT_PRIMARY : 0);
+  }
+
   return score;
 }
 
@@ -74,18 +87,65 @@ export function searchTerms(answers, matches) {
   return [...new Set(terms.map((term) => term.toLowerCase()))];
 }
 
+/** How many dishes of a cuisine contribute to its score. */
+const CUISINE_DEPTH = 3;
+
+/**
+ * Rank the cuisines themselves against a texture/flavour pair.
+ *
+ * The app asks two questions and decides the cuisine, so this is where that
+ * decision is made. A cuisine is scored by the sum of its best few dishes
+ * rather than by its single best: one perfect dish makes a lucky guess, while
+ * three strong ones mean the whole kitchen is pointed at what you want — and
+ * it also means the fallback dishes on the results screen are worth eating.
+ *
+ * @returns {{cuisine: object, score: number, dishes: object[]}[]} best first
+ */
+export function rankCuisines(answers, { dishes = DISHES } = {}) {
+  const pair = { texture: answers.texture, flavor: answers.flavor };
+
+  return CUISINES
+    .map((cuisine) => {
+      const ranked = dishes
+        .filter((dish) => dish.cuisine === cuisine.id)
+        .map((dish) => ({ dish, score: scoreDish(dish, pair) }))
+        .sort((a, b) => b.score - a.score
+          || breadth(a.dish) - breadth(b.dish)
+          || a.dish.name.localeCompare(b.dish.name))
+        .slice(0, CUISINE_DEPTH);
+
+      return {
+        cuisine,
+        score: ranked.reduce((total, entry) => total + entry.score, 0),
+        dishes: ranked.map((entry) => entry.dish),
+      };
+    })
+    .sort((a, b) => b.score - a.score
+      || breadth(a.dishes[0]) - breadth(b.dishes[0])
+      || a.cuisine.label.localeCompare(b.cuisine.label));
+}
+
 /**
  * Build the full diagnosis object consumed by the results screen.
  *
- * @param {{texture: string, flavor: string, cuisine: string}} answers
+ * The cuisine is derived from the two answers. `answers.cuisine` is honoured
+ * when set — that is how the "try another" control and older three-part share
+ * links pin a specific cuisine — and `alternatives` carries the rest of the
+ * ranking so the UI can offer the runner-up when nothing is nearby.
+ *
+ * @param {{texture: string, flavor: string, cuisine?: string}} answers
  */
 export function diagnose(answers) {
   const texture = findOption(TEXTURES, answers.texture);
   const flavor = findOption(FLAVORS, answers.flavor);
-  const cuisine = findOption(CUISINES, answers.cuisine);
-  const matches = rankDishes(answers);
 
-  const headline = [texture?.label, flavor?.label, cuisine?.label]
+  const ranking = rankCuisines(answers);
+  const pinned = ranking.find((entry) => entry.cuisine.id === answers.cuisine);
+  const chosen = pinned ?? ranking[0];
+  const cuisine = chosen.cuisine;
+
+  const matches = rankDishes({ ...answers, cuisine: cuisine.id });
+  const headline = [texture?.label, flavor?.label, cuisine.label]
     .filter(Boolean)
     .join(' · ');
 
@@ -93,10 +153,15 @@ export function diagnose(answers) {
     texture,
     flavor,
     cuisine,
+    /** True when the cuisine was derived rather than pinned by the user. */
+    derived: !pinned,
+    alternatives: ranking
+      .filter((entry) => entry.cuisine.id !== cuisine.id)
+      .map((entry) => entry.cuisine),
     headline,
     verdict: DIAGNOSES[`${answers.texture}-${answers.flavor}`]
       ?? 'An unusual craving. We respect it.',
     matches,
-    terms: searchTerms(answers, matches),
+    terms: searchTerms({ ...answers, cuisine: cuisine.id }, matches),
   };
 }

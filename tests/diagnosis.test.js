@@ -2,7 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { CUISINES, DISHES, FLAVORS, TEXTURES } from '../src/data.js';
-import { diagnose, rankDishes, scoreDish, searchTerms } from '../src/diagnosis.js';
+import { diagnose, rankCuisines, rankDishes, scoreDish, searchTerms } from '../src/diagnosis.js';
+
+/** Every texture/flavour pair the quiz can produce. */
+const PAIRS = TEXTURES.flatMap((texture) =>
+  FLAVORS.map((flavor) => ({ texture: texture.id, flavor: flavor.id })));
 
 test('every dish uses known texture, flavour and cuisine ids', () => {
   const textures = new Set(TEXTURES.map((option) => option.id));
@@ -24,12 +28,23 @@ test('dish ids are unique', () => {
 });
 
 test('scoreDish rewards cuisine most, then each tag independently', () => {
+  // textures: ['crispy', 'soft'], flavors: ['cheesy', 'savory'] — so 'crispy'
+  // and 'cheesy' are its defining traits and earn the primary bonus.
   const dish = DISHES.find((entry) => entry.id === 'smash-burger');
 
-  assert.equal(scoreDish(dish, { texture: 'crispy', flavor: 'cheesy', cuisine: 'american' }), 10);
-  assert.equal(scoreDish(dish, { texture: 'crispy', flavor: 'spicy', cuisine: 'american' }), 7);
+  assert.equal(scoreDish(dish, { texture: 'crispy', flavor: 'cheesy', cuisine: 'american' }), 12);
+  assert.equal(scoreDish(dish, { texture: 'soft', flavor: 'savory', cuisine: 'american' }), 10);
+  assert.equal(scoreDish(dish, { texture: 'crispy', flavor: 'spicy', cuisine: 'american' }), 8);
   assert.equal(scoreDish(dish, { texture: 'saucy', flavor: 'spicy', cuisine: 'american' }), 4);
   assert.equal(scoreDish(dish, { texture: 'saucy', flavor: 'spicy', cuisine: 'japanese' }), 0);
+});
+
+test('a defining tag outranks the same tag listed second', () => {
+  const tonkatsu = DISHES.find((entry) => entry.id === 'tonkatsu');   // crispy first
+  const gyoza = DISHES.find((entry) => entry.id === 'gyoza');         // soft first, then crispy
+  const answers = { texture: 'crispy', flavor: 'savory' };
+
+  assert.ok(scoreDish(tonkatsu, answers) > scoreDish(gyoza, answers));
 });
 
 test('ranking keeps results inside the chosen cuisine', () => {
@@ -41,19 +56,64 @@ test('ranking keeps results inside the chosen cuisine', () => {
 });
 
 test('every combination of answers produces at least one dish', () => {
-  for (const texture of TEXTURES) {
-    for (const flavor of FLAVORS) {
-      for (const cuisine of CUISINES) {
-        const answers = { texture: texture.id, flavor: flavor.id, cuisine: cuisine.id };
-        const matches = rankDishes(answers);
-        assert.ok(
-          matches.length > 0,
-          `no dish for ${texture.id}/${flavor.id}/${cuisine.id}`,
-        );
-        assert.ok(matches.every((dish) => dish.cuisine === cuisine.id));
-      }
+  for (const pair of PAIRS) {
+    for (const cuisine of CUISINES) {
+      const answers = { ...pair, cuisine: cuisine.id };
+      const matches = rankDishes(answers);
+      assert.ok(
+        matches.length > 0,
+        `no dish for ${pair.texture}/${pair.flavor}/${cuisine.id}`,
+      );
+      assert.ok(matches.every((dish) => dish.cuisine === cuisine.id));
     }
   }
+});
+
+test('rankCuisines returns every cuisine, best first, with dishes attached', () => {
+  const ranking = rankCuisines({ texture: 'saucy', flavor: 'savory' });
+
+  assert.equal(ranking.length, CUISINES.length);
+  assert.equal(ranking[0].cuisine.id, 'japanese');
+  assert.ok(ranking[0].dishes.length > 0);
+
+  const scores = ranking.map((entry) => entry.score);
+  assert.deepEqual(scores, [...scores].sort((a, b) => b - a));
+});
+
+test('the derived cuisine is decisive for every pair, and all four are reachable', () => {
+  const picked = new Set();
+
+  for (const pair of PAIRS) {
+    const result = diagnose(pair);
+    assert.ok(result.cuisine, `no cuisine derived for ${pair.texture}/${pair.flavor}`);
+    assert.equal(result.derived, true);
+    assert.equal(result.alternatives.length, CUISINES.length - 1);
+    assert.ok(result.matches.every((dish) => dish.cuisine === result.cuisine.id));
+    picked.add(result.cuisine.id);
+
+    // Deciding twice must decide the same way.
+    assert.equal(diagnose(pair).cuisine.id, result.cuisine.id);
+  }
+
+  assert.equal(picked.size, CUISINES.length, `only reached ${[...picked].join(', ')}`);
+});
+
+test('a pinned cuisine overrides the derived one and is not offered again', () => {
+  const derived = diagnose({ texture: 'saucy', flavor: 'savory' });
+  assert.equal(derived.cuisine.id, 'japanese');
+
+  const pinned = diagnose({ texture: 'saucy', flavor: 'savory', cuisine: 'mexican' });
+  assert.equal(pinned.cuisine.id, 'mexican');
+  assert.equal(pinned.derived, false);
+  assert.ok(pinned.matches.every((dish) => dish.cuisine === 'mexican'));
+  assert.ok(!pinned.alternatives.some((cuisine) => cuisine.id === 'mexican'));
+  assert.ok(pinned.alternatives.some((cuisine) => cuisine.id === 'japanese'));
+});
+
+test('an unknown pinned cuisine falls back to the derived one', () => {
+  const result = diagnose({ texture: 'saucy', flavor: 'savory', cuisine: 'martian' });
+  assert.equal(result.cuisine.id, 'japanese');
+  assert.equal(result.derived, true);
 });
 
 test('search terms are de-duplicated and fall back to the cuisine tags', () => {
@@ -83,4 +143,14 @@ test('diagnose tolerates an unknown combination without throwing', () => {
   const result = diagnose({ texture: 'chewy', flavor: 'sour', cuisine: 'american' });
   assert.equal(result.verdict, 'An unusual craving. We respect it.');
   assert.ok(result.matches.length > 0);
+});
+
+test('every pair has a verdict written for it', () => {
+  for (const pair of PAIRS) {
+    assert.notEqual(
+      diagnose(pair).verdict,
+      'An unusual craving. We respect it.',
+      `missing verdict copy for ${pair.texture}-${pair.flavor}`,
+    );
+  }
 });

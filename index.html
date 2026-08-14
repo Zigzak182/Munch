@@ -30,7 +30,7 @@
     <main class="screens" id="screens">
       <!-- Step 1 -->
       <section class="screen" id="screen-texture" data-step="0" aria-labelledby="texture-title">
-        <p class="screen__eyebrow">Question 1 of 3</p>
+        <p class="screen__eyebrow">Question 1 of 2</p>
         <h1 class="screen__title" id="texture-title">What does it need to feel like?</h1>
         <p class="screen__sub">Start with the mouthfeel. Everything else follows from it.</p>
         <div class="options" id="texture-options" role="radiogroup" aria-labelledby="texture-title"></div>
@@ -38,29 +38,24 @@
 
       <!-- Step 2 -->
       <section class="screen" id="screen-flavor" data-step="1" aria-labelledby="flavor-title" hidden>
-        <p class="screen__eyebrow">Question 2 of 3</p>
+        <p class="screen__eyebrow">Question 2 of 2</p>
         <h1 class="screen__title" id="flavor-title">And what should it taste of?</h1>
-        <p class="screen__sub">Pick the note you want up front.</p>
+        <p class="screen__sub">Pick the note you want up front. We'll work out the rest.</p>
         <div class="options" id="flavor-options" role="radiogroup" aria-labelledby="flavor-title"></div>
         <button class="btn btn--ghost" type="button" data-back>← Back</button>
       </section>
 
-      <!-- Step 3 -->
-      <section class="screen" id="screen-cuisine" data-step="2" aria-labelledby="cuisine-title" hidden>
-        <p class="screen__eyebrow">Question 3 of 3</p>
-        <h1 class="screen__title" id="cuisine-title">Where are we going with this?</h1>
-        <p class="screen__sub">This decides which kitchens we search for near you.</p>
-        <div class="options" id="cuisine-options" role="radiogroup" aria-labelledby="cuisine-title"></div>
-        <button class="btn btn--ghost" type="button" data-back>← Back</button>
-      </section>
-
       <!-- Results -->
-      <section class="screen screen--results" id="screen-results" data-step="3" aria-labelledby="results-title" hidden>
+      <section class="screen screen--results" id="screen-results" data-step="2" aria-labelledby="results-title" hidden>
         <div class="diagnosis" id="diagnosis">
           <p class="screen__eyebrow">Diagnosis</p>
           <h1 class="screen__title" id="results-title"></h1>
           <p class="diagnosis__verdict" id="diagnosis-verdict"></p>
           <ul class="dishes" id="dish-list"></ul>
+          <div class="swap" id="cuisine-swap" hidden>
+            <span class="swap__label" id="swap-label"></span>
+            <div class="swap__options" id="swap-options"></div>
+          </div>
         </div>
 
         <div class="locator" id="locator">
