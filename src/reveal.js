@@ -15,10 +15,15 @@ import { CUISINES } from './data.js';
 /** Emoji cycled during the "thinking" phase. */
 const SHUFFLE = CUISINES.map((cuisine) => cuisine.emoji);
 
+/**
+ * Roughly 3.9s end to end: long enough to read the cuisine, short enough to
+ * sit through more than once. The hold carries most of it — the landing is
+ * the part worth seeing, not the shuffle.
+ */
 const TIMING = {
-  shuffleStep: 110,
-  shuffle: 1150,
-  hold: 1250,
+  shuffleStep: 145,
+  shuffle: 1500,
+  hold: 2100,
 };
 
 const REDUCED = {
@@ -66,11 +71,12 @@ export function playReveal(result) {
       cleanup();
       overlay.classList.remove('is-open');
       // Wait out the fade so the results are not revealed mid-transition.
+      // Must stay in step with the `.reveal` opacity transition in the CSS.
       setTimeout(() => {
         overlay.hidden = true;
         overlay.setAttribute('aria-hidden', 'true');
         resolve();
-      }, prefersReducedMotion() ? 0 : 220);
+      }, prefersReducedMotion() ? 0 : 320);
     };
 
     /** Jump straight to the landed state, then finish shortly after. */
