@@ -21,10 +21,18 @@ const NOMINATIM_ENDPOINT = 'https://nominatim.openstreetmap.org/search';
 /** Venue types worth sending a hungry person to. */
 const AMENITIES = ['restaurant', 'fast_food', 'cafe', 'bar', 'pub'];
 
-/** Radii tried in order until we have enough results (metres). */
-export const SEARCH_RADII = [1500, 4000, 10000];
+/**
+ * One generous pass covers a walk, a bus ride and most of a small town, so
+ * the common case is a single request. `WIDE_RADIUS` is only tried when the
+ * first pass finds *nothing at all* — escalating on a merely thin result set
+ * meant three round trips on nearly every search.
+ */
+export const SEARCH_RADIUS = 5000;
+export const WIDE_RADIUS = 15000;
 
-const MIN_RESULTS = 6;
+/** Give up on a mirror after this long and try the next one. */
+const ENDPOINT_TIMEOUT = 12000;
+
 const MAX_RESULTS = 40;
 
 /** Failure that the UI can present to the user as-is. */
@@ -64,7 +72,11 @@ export function buildOverpassQuery({ lat, lon }, { cuisineTags = [], nameTerms =
     clauses.push(`nwr["amenity"~"${amenity}"]${around};`);
   }
 
-  return `[out:json][timeout:25];(\n  ${clauses.join('\n  ')}\n);out center tags ${MAX_RESULTS * 3};`;
+  // `out center` keeps the default `body` verbosity, which carries tags *and*
+  // coordinates. Do not add `tags` here: that verbosity drops coordinates, and
+  // since most venues are mapped as single nodes rather than building
+  // outlines, it silently discards nearly every real result.
+  return `[out:json][timeout:20];(\n  ${clauses.join('\n  ')}\n);out center ${MAX_RESULTS * 3};`;
 }
 
 /** Reduce a raw Overpass element to the fields the UI needs. */
@@ -128,12 +140,20 @@ async function postOverpass(query, { signal }) {
   let lastError;
 
   for (const endpoint of OVERPASS_ENDPOINTS) {
+    // A mirror under load can sit on a connection for the full server-side
+    // timeout. Cap each attempt ourselves so a slow one costs seconds, not a
+    // minute, before we move on.
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    signal?.addEventListener('abort', abort, { once: true });
+    const timer = setTimeout(abort, ENDPOINT_TIMEOUT);
+
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ data: query }),
-        signal,
+        signal: controller.signal,
       });
 
       if (response.status === 429 || response.status === 504) {
@@ -147,8 +167,15 @@ async function postOverpass(query, { signal }) {
 
       return await response.json();
     } catch (error) {
-      if (error.name === 'AbortError') throw error;
-      lastError = new PlacesError('Could not reach the map service.', { code: 'network', cause: error });
+      // Only the caller cancelling ends the whole search; our own deadline
+      // just means this mirror was too slow.
+      if (signal?.aborted) throw error;
+      lastError = error.name === 'AbortError'
+        ? new PlacesError('The map service is taking too long.', { code: 'timeout' })
+        : new PlacesError('Could not reach the map service.', { code: 'network', cause: error });
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', abort);
     }
   }
 
@@ -158,15 +185,15 @@ async function postOverpass(query, { signal }) {
 /**
  * Find venues near `origin` matching the diagnosis.
  *
- * Widens the search radius until at least `MIN_RESULTS` venues are found or
- * the radii are exhausted, then returns whatever the widest pass produced.
+ * Normally one request. The wider pass runs only when the first finds nothing
+ * at all, which is the rural case rather than the everyday one.
  *
  * @returns {Promise<{places: object[], radius: number}>}
  */
 export async function findNearbyPlaces(origin, { cuisineTags = [], nameTerms = [], signal } = {}) {
-  let best = { places: [], radius: SEARCH_RADII[0] };
+  let best = { places: [], radius: SEARCH_RADIUS };
 
-  for (const radius of SEARCH_RADII) {
+  for (const radius of [SEARCH_RADIUS, WIDE_RADIUS]) {
     const query = buildOverpassQuery(origin, { cuisineTags, nameTerms, radius });
     const data = await postOverpass(query, { signal });
 
@@ -181,7 +208,7 @@ export async function findNearbyPlaces(origin, { cuisineTags = [], nameTerms = [
     const ranked = rankPlaces(unique, origin, { cuisineTags, nameTerms });
 
     best = { places: ranked, radius };
-    if (ranked.length >= MIN_RESULTS) break;
+    if (ranked.length > 0) break;
   }
 
   return best;
