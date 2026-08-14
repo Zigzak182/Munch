@@ -1,10 +1,11 @@
 /**
  * Screen flow and DOM wiring.
  *
- * The quiz is a four-step state machine — texture → flavour → cuisine →
- * results. Answers live in `state`, are mirrored into the URL hash so a
- * diagnosis can be shared or reloaded, and only the results step touches the
- * network.
+ * The quiz is a three-step state machine — texture → flavour → results. Only
+ * two questions are asked; the cuisine is derived from the answers, and the
+ * results screen offers the runner-ups if the derived one doesn't land.
+ * Answers live in `state`, are mirrored into the URL hash so a diagnosis can
+ * be shared or reloaded, and only the results step touches the network.
  */
 
 import { CUISINES, FLAVORS, TEXTURES } from './data.js';
@@ -16,14 +17,17 @@ import * as mapView from './map.js';
 const STEPS = [
   { key: 'texture', label: 'Feel', options: TEXTURES, mount: 'texture-options' },
   { key: 'flavor', label: 'Flavour', options: FLAVORS, mount: 'flavor-options' },
-  { key: 'cuisine', label: 'Cuisine', options: CUISINES, mount: 'cuisine-options' },
   { key: 'results', label: 'Results' },
 ];
+
+/** Index of the results screen. */
+const RESULTS = STEPS.length - 1;
 
 const state = {
   step: 0,
   texture: null,
   flavor: null,
+  /** Only set when the user overrides the derived cuisine. */
   cuisine: null,
   origin: null,
   originLabel: '',
@@ -125,7 +129,40 @@ function renderDiagnosis() {
     list.append(item);
   });
 
+  renderSwap(result);
   return result;
+}
+
+/**
+ * The escape hatch from a derived cuisine. It sits below the diagnosis rather
+ * than in front of it: the app commits to an answer first, and only then
+ * offers the runner-ups — which also rescues someone whose neighbourhood has
+ * none of the first choice.
+ */
+function renderSwap(result) {
+  const swap = $('cuisine-swap');
+  const options = $('swap-options');
+  options.innerHTML = '';
+
+  $('swap-label').textContent = result.derived
+    ? `Not feeling ${result.cuisine.label}?`
+    : 'Or try:';
+
+  result.alternatives.forEach((cuisine) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'swap__btn';
+    button.innerHTML = `<span aria-hidden="true">${cuisine.emoji}</span> ${escapeHtml(cuisine.label)}`;
+    button.addEventListener('click', () => {
+      state.cuisine = cuisine.id;
+      renderDiagnosis();
+      syncHash();
+      if (state.origin) search(state.origin, state.originLabel);
+    });
+    options.append(button);
+  });
+
+  swap.hidden = result.alternatives.length === 0;
 }
 
 const directionsUrl = (place) =>
@@ -190,10 +227,13 @@ function renderResults() {
   results.hidden = state.places.length === 0;
   if (state.places.length === 0) return;
 
+  // Report how far the results actually reach, not how far we searched — the
+  // radius widens in fixed steps and would overstate the distance.
+  const reach = Math.max(...state.places.map((place) => place.distance));
   const matches = state.places.filter((place) => place.tier === 0).length;
   $('results-count').textContent = matches > 0
-    ? `${state.places.length} places within ${formatDistance(state.radius)} · ${matches} on-cuisine`
-    : `${state.places.length} places within ${formatDistance(state.radius)}`;
+    ? `${state.places.length} places within ${formatDistance(reach)} · ${matches} on-cuisine`
+    : `${state.places.length} places within ${formatDistance(reach)}`;
 
   renderList();
 
@@ -227,13 +267,10 @@ function setStatus(message, tone = 'info') {
 
 function choose(key, value) {
   state[key] = value;
-  const step = STEPS.find((entry) => entry.key === key);
-  renderOptions(step);
+  // The answers drive the cuisine, so a new answer re-derives it.
+  state.cuisine = null;
 
-  if (key === 'cuisine') {
-    goTo(3);
-    return;
-  }
+  renderOptions(STEPS.find((entry) => entry.key === key));
   goTo(state.step + 1);
 }
 
@@ -241,30 +278,39 @@ function goTo(step) {
   state.step = step;
   renderStep();
 
-  if (step === 3) {
+  if (step === RESULTS) {
     renderDiagnosis();
     syncHash();
     if (state.origin) search(state.origin, state.originLabel);
   }
 }
 
-function syncHash() {
-  const { texture, flavor, cuisine } = state;
-  if (texture && flavor && cuisine) {
-    history.replaceState(null, '', `#${texture}/${flavor}/${cuisine}`);
-  }
+/** `#texture/flavor`, plus the cuisine only when the user pinned one. */
+function hashFor({ texture, flavor, cuisine }) {
+  if (!texture || !flavor) return '';
+  return `#${texture}/${flavor}${cuisine ? `/${cuisine}` : ''}`;
 }
 
+function syncHash() {
+  const hash = hashFor(state);
+  if (hash) history.replaceState(null, '', hash);
+}
+
+/**
+ * Restore from a shared link. The cuisine segment is optional — links made
+ * before the cuisine question was dropped still carry one, and it is honoured
+ * as a pin.
+ */
 function restoreFromHash() {
   const [texture, flavor, cuisine] = window.location.hash.replace(/^#/, '').split('/');
   const valid = TEXTURES.some((option) => option.id === texture)
-    && FLAVORS.some((option) => option.id === flavor)
-    && CUISINES.some((option) => option.id === cuisine);
+    && FLAVORS.some((option) => option.id === flavor);
   if (!valid) return false;
 
-  Object.assign(state, { texture, flavor, cuisine });
-  STEPS.slice(0, 3).forEach(renderOptions);
-  goTo(3);
+  const pinned = CUISINES.some((option) => option.id === cuisine) ? cuisine : null;
+  Object.assign(state, { texture, flavor, cuisine: pinned });
+  STEPS.slice(0, RESULTS).forEach(renderOptions);
+  goTo(RESULTS);
   return true;
 }
 
@@ -279,7 +325,7 @@ async function search(origin, label) {
   state.originLabel = label;
   const { terms, cuisine } = diagnose(state);
 
-  setStatus(`Looking for ${cuisine.label.toLowerCase()} places near ${label}…`, 'busy');
+  setStatus(`Looking for ${cuisine.label} places near ${label}…`, 'busy');
   $('results').hidden = true;
 
   try {
@@ -294,7 +340,7 @@ async function search(origin, label) {
     state.radius = radius;
 
     if (places.length === 0) {
-      setStatus(`No places found within ${formatDistance(radius)}. Try another cuisine, or search a different area.`, 'warn');
+      setStatus(`No ${cuisine.label} places within ${formatDistance(radius)}. Try one of the alternatives above, or search a different area.`, 'warn');
       renderResults();
       return;
     }
@@ -371,14 +417,13 @@ function bindEvents() {
   // A pasted or edited hash is a same-document navigation, so nothing
   // re-renders unless we listen for it.
   window.addEventListener('hashchange', () => {
-    const current = `#${state.texture}/${state.flavor}/${state.cuisine}`;
-    if (window.location.hash && window.location.hash !== current) restoreFromHash();
+    if (window.location.hash && window.location.hash !== hashFor(state)) restoreFromHash();
   });
 
   $('restart').addEventListener('click', () => {
     Object.assign(state, { step: 0, texture: null, flavor: null, cuisine: null, places: [] });
     history.replaceState(null, '', window.location.pathname);
-    STEPS.slice(0, 3).forEach(renderOptions);
+    STEPS.slice(0, RESULTS).forEach(renderOptions);
     $('results').hidden = true;
     setStatus('');
     goTo(0);
@@ -399,7 +444,7 @@ function bindEvents() {
 }
 
 function init() {
-  STEPS.slice(0, 3).forEach(renderOptions);
+  STEPS.slice(0, RESULTS).forEach(renderOptions);
   bindEvents();
   if (!restoreFromHash()) renderStep();
 }

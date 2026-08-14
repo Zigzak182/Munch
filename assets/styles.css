@@ -293,6 +293,34 @@ a { color: var(--accent); }
 .dish__name { margin: 0 0 4px; font-weight: 650; }
 .dish__note { margin: 0; font-size: 13.5px; color: var(--text-muted); }
 
+/* Escape hatch from the derived cuisine — deliberately quiet, and below the
+   diagnosis, so the app still reads as having made up its mind. */
+.swap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.swap[hidden] { display: none; }
+.swap__label { font-size: 13.5px; color: var(--text-muted); }
+.swap__options { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.swap__btn {
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+
+.swap__btn:hover { color: var(--text); border-color: var(--border-strong); }
+
 /* ---------------------------------------------------------------- locator */
 
 .locator {
@@ -306,7 +334,7 @@ a { color: var(--accent); }
 }
 
 .locator__actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-.locator__form { display: flex; gap: 8px; flex: 1 1 320px; }
+.locator__form { display: flex; align-items: center; gap: 8px; flex: 1 1 320px; }
 .locator__form .input { flex: 1 1 auto; }
 .locator__status { margin: 0; font-size: 14px; color: var(--text-muted); min-height: 1.2em; }
 .locator__status[data-tone="ok"] { color: var(--ok); }
@@ -437,5 +465,8 @@ a { color: var(--accent); }
 
 @media (max-width: 520px) {
   .locator__actions { flex-direction: column; align-items: stretch; }
+  /* The row basis is a main-axis size, which becomes height once the parent
+     stacks — leave the form to size itself instead. */
+  .locator__form { flex: 0 0 auto; }
   .btn--primary { text-align: center; }
 }

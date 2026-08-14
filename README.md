@@ -1,16 +1,19 @@
 # Munch
 
-**Hunger diagnostics.** Three questions — how it should *feel*, what it should
-*taste* of, and which *cuisine* you're in the mood for — then Munch names the
-dish you're actually craving and maps the closest places that serve it.
+**Hunger diagnostics.** Two questions — how it should *feel* and what it should
+*taste* of — then Munch decides the cuisine for you, names the dish you're
+actually craving, and maps the closest places that serve it.
 
 ```
 Crunchy · Soft · Saucy · Crispy      →  what it feels like
 Cheesy · Spicy · Savory · Fresh      →  what it tastes of
-Japanese · Mexican · Mediterranean · American
-                                     →  where we're going
-                                     →  a diagnosis + the nearest places
+                                     →  a cuisine, a diagnosis,
+                                        and the nearest places
 ```
+
+Deciding the cuisine is the point: picking it yourself is the step that stalls
+people. The results screen still lists the runner-up cuisines underneath, so
+the decision is easy to overrule — but you get an answer first.
 
 ## Running it
 
@@ -33,21 +36,26 @@ npm test           # node --test — unit tests for the pure modules
 
 ## How it works
 
-1. **Quiz** — three single-choice screens. Answers are held in memory and
-   mirrored into the URL hash (`#saucy/spicy/japanese`), so a diagnosis can be
+1. **Quiz** — two single-choice screens. Answers are held in memory and
+   mirrored into the URL hash (`#saucy/spicy`), so a diagnosis can be
    bookmarked or shared and comes back on reload.
-2. **Diagnosis** — every dish in the catalogue is scored against the answers:
-   cuisine is weighted heaviest (it also constrains where we can send you),
-   then texture and flavour independently. Ties break toward the more
-   specifically tagged dish. The top three are shown.
-3. **Location** — the browser's Geolocation API, or Nominatim for a typed
+2. **Cuisine** — each cuisine is scored by the sum of its best three dishes
+   against the pair. One perfect dish is a lucky guess; three strong ones mean
+   the whole kitchen is pointed at what you want. Every one of the sixteen
+   pairs resolves to a cuisine, and all four are reachable.
+3. **Diagnosis** — dishes within that cuisine are scored on texture and
+   flavour, each paying a bonus when the answer matches the dish's *defining*
+   trait — the first tag in its list. Gyoza is soft before it is crispy, so a
+   craving for crispy reaches tonkatsu first. The top three are shown, with
+   the runner-up cuisines offered below as an override.
+4. **Location** — the browser's Geolocation API, or Nominatim for a typed
    place name.
-4. **Venues** — an Overpass query pulls restaurants, fast food, cafés, bars and
+5. **Venues** — an Overpass query pulls restaurants, fast food, cafés, bars and
    pubs around that point, in two passes: places whose `cuisine` tag matches,
    and places whose *name* hints at the dish (a taqueria rarely tags itself).
    The search starts at 1.5 km and widens to 4 km then 10 km only if it comes
    back thin.
-5. **Results** — ranked by match quality first, distance second, and shown as
+6. **Results** — ranked by match quality first, distance second, and shown as
    either a map or a sortable list. Every venue links out to directions.
 
 ## Data sources
@@ -68,7 +76,7 @@ rather than inventing places.
 ## Layout
 
 ```
-index.html          markup for the four screens
+index.html          markup for the three screens
 assets/styles.css   all styling — dark-first, light mode via prefers-color-scheme
 src/data.js         questions, cuisines and the dish catalogue
 src/diagnosis.js    scoring and ranking (pure)
@@ -99,6 +107,10 @@ honestly satisfies, plus `terms` used to match venue names:
 }
 ```
 
-The test suite checks that every tag is a known id and that all 64 answer
-combinations still resolve to at least one dish, so a typo or a gap in the
-matrix fails the build rather than showing an empty results screen.
+Order matters: the first texture and the first flavour are treated as the
+dish's defining traits and score a bonus, so list them deliberately.
+
+The test suite checks that every tag is a known id, that all sixteen answer
+pairs resolve to a cuisine with all four reachable, and that every
+pair-and-cuisine combination still yields at least one dish — so a typo or a
+gap in the matrix fails CI rather than showing an empty results screen.
