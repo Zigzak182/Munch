@@ -48,14 +48,18 @@ npm test           # node --test — unit tests for the pure modules
    trait — the first tag in its list. Gyoza is soft before it is crispy, so a
    craving for crispy reaches tonkatsu first. The top three are shown, with
    the runner-up cuisines offered below as an override.
-4. **Location** — the browser's Geolocation API, or Nominatim for a typed
-   place name.
-5. **Venues** — an Overpass query pulls restaurants, fast food, cafés, bars and
+4. **Reveal** — a short full-screen moment shuffles the cuisines and lands on
+   the chosen one. Since the app decides for you, the decision has to be seen
+   being made, or it reads as a label that was always there. Tap to skip, and
+   it shortens itself under `prefers-reduced-motion`.
+5. **Location** — requested automatically once the reveal ends, via the
+   browser's Geolocation API; Nominatim handles typed place names.
+6. **Venues** — an Overpass query pulls restaurants, fast food, cafés, bars and
    pubs around that point, in two passes: places whose `cuisine` tag matches,
    and places whose *name* hints at the dish (a taqueria rarely tags itself).
    The search starts at 1.5 km and widens to 4 km then 10 km only if it comes
    back thin.
-6. **Results** — ranked by match quality first, distance second, and shown as
+7. **Results** — ranked by match quality first, distance second, and shown as
    either a map or a sortable list. Every venue links out to directions.
 
 ## Data sources
@@ -76,11 +80,12 @@ rather than inventing places.
 ## Layout
 
 ```
-index.html          markup for the three screens
+index.html          markup for the three screens and the reveal overlay
 assets/styles.css   all styling — dark-first, light mode via prefers-color-scheme
 src/data.js         questions, cuisines and the dish catalogue
 src/diagnosis.js    scoring and ranking (pure)
 src/geo.js          haversine distance, formatting, geolocation wrapper
+src/reveal.js       the cuisine reveal overlay
 src/places.js       Overpass + Nominatim queries, venue ranking
 src/map.js          Leaflet wrapper; degrades to list-only if Leaflet is absent
 src/app.js          screen flow and DOM wiring

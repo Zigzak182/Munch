@@ -70,34 +70,60 @@ export class LocationError extends Error {
  * development); the resulting failure is surfaced as a `LocationError` with a
  * message the UI can show verbatim.
  *
+ * The `timeout` option only covers *acquiring* a fix — browsers do not count
+ * time spent waiting on the permission prompt against it, so an ignored or
+ * silently blocked prompt means neither callback ever fires. `watchdog` is our
+ * own deadline for that case, so the UI is never left waiting forever.
+ *
  * @returns {Promise<{lat: number, lon: number, accuracy: number}>}
  */
-export function currentPosition({ timeout = 12000, maximumAge = 60000 } = {}) {
+export function currentPosition({ timeout = 12000, maximumAge = 60000, watchdog = 14000 } = {}) {
   return new Promise((resolve, reject) => {
     if (!('geolocation' in navigator)) {
       reject(new LocationError('This browser has no location support.', { code: 'unsupported' }));
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => resolve({
-        lat: position.coords.latitude,
-        lon: position.coords.longitude,
-        accuracy: position.coords.accuracy,
-      }),
-      (error) => {
-        const messages = {
-          1: 'Location permission was denied. Enter a place name instead.',
-          2: 'Your position is unavailable right now. Try a place name.',
-          3: 'Locating took too long. Try again or enter a place name.',
-        };
-        const codes = { 1: 'denied', 2: 'unavailable', 3: 'timeout' };
-        reject(new LocationError(
-          messages[error.code] ?? 'Could not read your location.',
-          { code: codes[error.code] ?? 'unknown' },
-        ));
-      },
-      { enableHighAccuracy: true, timeout, maximumAge },
-    );
+    let settled = false;
+    const done = (fn) => (value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(watchdogTimer);
+      fn(value);
+    };
+
+    const succeed = done((position) => resolve({
+      lat: position.coords.latitude,
+      lon: position.coords.longitude,
+      accuracy: position.coords.accuracy,
+    }));
+
+    const fail = done((error) => {
+      const messages = {
+        1: 'Location permission was denied. Enter a place name instead.',
+        2: 'Your position is unavailable right now. Try a place name.',
+        3: 'Locating took too long. Try again or enter a place name.',
+      };
+      const codes = { 1: 'denied', 2: 'unavailable', 3: 'timeout' };
+      reject(new LocationError(
+        messages[error.code] ?? 'Could not read your location.',
+        { code: codes[error.code] ?? 'unknown' },
+      ));
+    });
+
+    const watchdogTimer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new LocationError(
+        'No answer to the location request — allow location access and tap “Use my location”, or type a place below.',
+        { code: 'no-response' },
+      ));
+    }, watchdog);
+
+    navigator.geolocation.getCurrentPosition(succeed, fail, {
+      enableHighAccuracy: true,
+      timeout,
+      maximumAge,
+    });
   });
 }

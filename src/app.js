@@ -12,6 +12,7 @@ import { CUISINES, FLAVORS, TEXTURES } from './data.js';
 import { diagnose } from './diagnosis.js';
 import { LocationError, currentPosition, formatDistance, walkingMinutes } from './geo.js';
 import { PlacesError, findNearbyPlaces, geocode } from './places.js';
+import { playReveal } from './reveal.js';
 import * as mapView from './map.js';
 
 const STEPS = [
@@ -265,13 +266,22 @@ function setStatus(message, tone = 'info') {
 
 // ------------------------------------------------------------------- flow
 
-function choose(key, value) {
+async function choose(key, value) {
   state[key] = value;
   // The answers drive the cuisine, so a new answer re-derives it.
   state.cuisine = null;
 
   renderOptions(STEPS.find((entry) => entry.key === key));
-  goTo(state.step + 1);
+
+  if (key !== 'flavor') {
+    goTo(state.step + 1);
+    return;
+  }
+
+  // Last answer: show the cuisine being decided, then go looking for it.
+  goTo(RESULTS);
+  await playReveal(diagnose(state));
+  if (!state.origin) locateAndSearch();
 }
 
 function goTo(step) {
