@@ -7,8 +7,9 @@ that fit.
 ```
 Crunchy · Soft · Saucy · Crispy      →  what it feels like
 Cheesy · Spicy · Savory · Fresh      →  what it tastes of
-                                     →  a cuisine, a diagnosis,
-                                        and the nearest places
+                                     →  one of Asian, Italian, Mexican,
+                                        Indian, Mediterranean, American,
+                                        and the nearest places serving it
 ```
 
 Deciding the cuisine is the point: picking it yourself is the step that stalls
@@ -94,10 +95,15 @@ way.
 1. **Quiz** — two single-choice screens. Answers are held in memory and
    mirrored into the URL hash (`#saucy/spicy`), so a diagnosis can be
    bookmarked or shared and comes back on reload.
-2. **Cuisine** — each cuisine is scored by the sum of its best three dishes
-   against the pair. One perfect dish is a lucky guess; three strong ones mean
-   the whole kitchen is pointed at what you want. Every one of the sixteen
-   pairs resolves to a cuisine, and all four are reachable.
+2. **Cuisine** — each of the six cuisines is scored by the sum of its best
+   three dishes against the pair. One perfect dish is a lucky guess; three
+   strong ones mean the whole kitchen is pointed at what you want. Every one of
+   the sixteen pairs resolves to a cuisine, and every cuisine is reachable.
+
+   Because the score sums a cuisine's best three, **catalogue depth wins pairs
+   on its own** — a cuisine with more dishes, or with several near-identical
+   entries, crowds out better-fitting rivals. Keep the counts level and the
+   tags distinct when adding to it.
 3. **Diagnosis** — dishes within that cuisine are scored on texture and
    flavour, each paying a bonus when the answer matches the dish's *defining*
    trait — the first tag in its list. Gyoza is soft before it is crispy, so a
@@ -187,6 +193,7 @@ Order matters: the first texture and the first flavour are treated as the
 dish's defining traits and score a bonus, so list them deliberately.
 
 The test suite checks that every tag is a known id, that all sixteen answer
-pairs resolve to a cuisine with all four reachable, and that every
-pair-and-cuisine combination still yields at least one dish — so a typo or a
-gap in the matrix fails CI rather than showing an empty results screen.
+pairs resolve to a cuisine with **every** cuisine reachable, and that every
+pair-and-cuisine combination still yields at least one dish — so a typo, an
+unreachable cuisine or a gap in the matrix fails CI rather than reaching the
+screen.

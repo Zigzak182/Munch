@@ -96,6 +96,14 @@ export function searchTerms(answers, matches) {
 const CUISINE_DEPTH = 3;
 
 /**
+ * How many runner-up cuisines the results screen offers.
+ *
+ * The point of deriving a cuisine is to stop presenting a menu, so the escape
+ * hatch stays short — the next best few, not everything that lost.
+ */
+const ALTERNATIVES = 3;
+
+/**
  * Rank the cuisines themselves against a texture/flavour pair.
  *
  * The app asks two questions and decides the cuisine, so this is where that
@@ -162,6 +170,7 @@ export function diagnose(answers) {
     derived: !pinned,
     alternatives: ranking
       .filter((entry) => entry.cuisine.id !== cuisine.id)
+      .slice(0, ALTERNATIVES)
       .map((entry) => entry.cuisine),
     headline,
     verdict: DIAGNOSES[`${answers.texture}-${answers.flavor}`]
