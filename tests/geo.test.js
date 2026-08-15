@@ -60,6 +60,35 @@ test('currentPosition resolves with flattened coordinates', async () => {
   assert.deepEqual(await currentPosition(), { lat: 51.5, lon: -0.12, accuracy: 8 });
 });
 
+test('an insecure page is reported as such, not as a denied permission', async () => {
+  // Browsers refuse geolocation on http and report PERMISSION_DENIED, so
+  // without this check the user is told they blocked something they did not.
+  stubGeolocation((success, failure) => failure({ code: 1 }));
+  globalThis.isSecureContext = false;
+
+  try {
+    await assert.rejects(currentPosition(), (error) => {
+      assert.equal(error.code, 'insecure');
+      assert.match(error.message, /secure connection/i);
+      assert.doesNotMatch(error.message, /denied/i);
+      return true;
+    });
+  } finally {
+    delete globalThis.isSecureContext;
+  }
+});
+
+test('a real denial on a secure page still reads as denied', async () => {
+  stubGeolocation((success, failure) => failure({ code: 1 }));
+  globalThis.isSecureContext = true;
+
+  try {
+    await assert.rejects(currentPosition(), { code: 'denied' });
+  } finally {
+    delete globalThis.isSecureContext;
+  }
+});
+
 test('currentPosition maps a denial to a LocationError the UI can show', async () => {
   stubGeolocation((success, failure) => failure({ code: 1 }));
 

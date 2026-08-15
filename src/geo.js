@@ -84,6 +84,19 @@ export function currentPosition({ timeout = 12000, maximumAge = 60000, watchdog 
       return;
     }
 
+    // Geolocation is gated on a secure context, and browsers report the
+    // refusal as PERMISSION_DENIED — the same code as the user tapping
+    // "Block". Checking first is the only way to tell those apart, and the
+    // difference matters: one is fixed by the site, the other by the user.
+    if (typeof globalThis.isSecureContext === 'boolean' && !globalThis.isSecureContext) {
+      reject(new LocationError(
+        'Location needs a secure connection. This page was loaded over http — '
+        + 'open it with https:// instead, or enter a place name below.',
+        { code: 'insecure' },
+      ));
+      return;
+    }
+
     let settled = false;
     const done = (fn) => (value) => {
       if (settled) return;
