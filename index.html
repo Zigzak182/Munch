@@ -75,17 +75,6 @@
         <div class="results" id="results" hidden>
           <div class="results__bar">
             <p class="results__count" id="results-count"></p>
-            <div class="toggle" role="tablist" aria-label="Result view">
-              <button class="toggle__btn is-active" type="button" role="tab" data-view="map" aria-selected="true">Map</button>
-              <button class="toggle__btn" type="button" role="tab" data-view="list" aria-selected="false">List</button>
-            </div>
-          </div>
-
-          <div class="results__map" id="map-panel" role="tabpanel" aria-label="Map of nearby places">
-            <div id="map"></div>
-          </div>
-
-          <div class="results__list" id="list-panel" role="tabpanel" aria-label="List of nearby places" hidden>
             <label class="sort" for="sort-select">
               Sort
               <select class="select" id="sort-select">
@@ -94,7 +83,16 @@
                 <option value="name">Name (A–Z)</option>
               </select>
             </label>
-            <ul class="places" id="place-list"></ul>
+          </div>
+
+          <div class="results__panes">
+            <div class="results__map" id="map-panel" aria-label="Map of nearby places">
+              <div id="map"></div>
+            </div>
+
+            <div class="results__list" id="list-panel">
+              <ul class="places" id="place-list" aria-label="Nearby places"></ul>
+            </div>
           </div>
         </div>
 

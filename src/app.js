@@ -12,7 +12,6 @@ import { CUISINES, FLAVORS, TEXTURES } from './data.js';
 import { diagnose } from './diagnosis.js';
 import { LocationError, currentPosition, formatDistance, walkingMinutes } from './geo.js';
 import { PlacesError, activeProvider, findNearbyPlaces, geocode } from './places.js';
-import { hasGoogle } from './config.js';
 import { playReveal } from './reveal.js';
 import * as mapView from './map.js';
 
@@ -35,7 +34,6 @@ const state = {
   originLabel: '',
   places: [],
   radius: 0,
-  view: 'map',
   sort: 'best',
 };
 
@@ -248,31 +246,17 @@ function renderResults() {
 
   renderList();
 
+  // The map loads asynchronously and sits above the list; a failure hides it
+  // and leaves the list carrying the results on its own.
+  $('map-panel').hidden = !mapView.isAvailable();
   if (mapView.isAvailable()) {
-    setView(state.view);
-    // The map loads asynchronously; a failure leaves the list in charge.
     mapView.ensureMap($('map'))
       .then(() => mapView.renderPlaces(state.origin, state.places, popupHtml))
       .catch((error) => {
         showSetupNotice(error.message);
-        setView('list');
+        $('map-panel').hidden = true;
       });
-  } else {
-    setView('list');
   }
-}
-
-function setView(view) {
-  state.view = mapView.isAvailable() ? view : 'list';
-  view = state.view;
-  $('map-panel').hidden = view !== 'map';
-  $('list-panel').hidden = view !== 'list';
-  document.querySelectorAll('.toggle__btn').forEach((button) => {
-    const active = button.dataset.view === view;
-    button.classList.toggle('is-active', active);
-    button.setAttribute('aria-selected', String(active));
-  });
-  if (view === 'map') mapView.refresh();
 }
 
 /** Surface a configuration problem the user has to fix themselves. */
@@ -445,20 +429,18 @@ function bindEvents() {
     if (query) searchPlaceName(query);
   });
 
-  document.querySelectorAll('.toggle__btn').forEach((button) => {
-    button.addEventListener('click', () => setView(button.dataset.view));
-  });
-
   $('sort-select').addEventListener('change', (event) => {
     state.sort = event.target.value;
     renderList();
   });
 
+  // With both panes on screen, "Show on map" only has to bring the map into
+  // view — on a phone it is directly above the list, off-screen.
   $('place-list').addEventListener('click', (event) => {
     const id = event.target.closest('[data-focus]')?.dataset.focus;
     if (!id) return;
-    setView('map');
     mapView.focusPlace(id);
+    $('map-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   });
 
   // A pasted or edited hash is a same-document navigation, so nothing
@@ -494,10 +476,6 @@ function init() {
   STEPS.slice(0, RESULTS).forEach(renderOptions);
   renderAttribution();
   bindEvents();
-
-  if (!hasGoogle()) {
-    document.querySelector('.toggle')?.setAttribute('hidden', '');
-  }
   if (!restoreFromHash()) renderStep();
 }
 

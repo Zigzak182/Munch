@@ -101,8 +101,10 @@ if a free allowance is the priority.
    the cuisine's `includedPrimaryTypes` and ranked by distance, widening to
    15 km only when it finds nothing at all. The OpenStreetMap fallback runs
    the equivalent Overpass query when no key is configured.
-7. **Results** — ranked by match quality first, distance second, and shown as
-   either a map or a sortable list. Every venue links out to directions.
+7. **Results** — ranked by match quality first, distance second, with the map
+   and the sortable list on screen together: stacked on a phone, side by side
+   from 860px with the map sticky as the list scrolls past. Every venue links
+   out to directions, its website and its Google listing.
 
 ## Data sources
 
