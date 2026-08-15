@@ -32,7 +32,7 @@ export function mapId() {
 }
 
 /**
- * Whether venue cards show a photo.
+ * Whether venue cards offer a photo at all.
  *
  * Defaults to on. Photos are a separate billable request per image, so this
  * is the one knob most likely to be turned off on a busy deployment.
@@ -40,12 +40,11 @@ export function mapId() {
 export const showPhotos = () => config().showPhotos !== false;
 
 /**
- * How many cards may show a photo, counted down the list as displayed.
+ * How many cards offer a photo, counted down the list as displayed.
  *
- * Photos are billed per image fetched, and a fully scrolled list of twenty is
- * twenty requests — several times the cost of the search itself. Capping the
- * top few keeps the visual hook where it matters, on the results you actually
- * look at, and leaves the tail as text.
+ * Photos load on tap rather than automatically, so this is a ceiling on what a
+ * results screen could ever cost in images rather than what it does cost —
+ * which is nothing until someone asks.
  *
  * `showPhotos: false` wins over any limit; a limit of 0 has the same effect.
  */

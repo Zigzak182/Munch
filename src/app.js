@@ -178,16 +178,36 @@ function badges(place) {
 }
 
 /**
- * Venue photo, credited.
+ * Venue photo — behind a tap, not automatic.
  *
- * Only the first `limit` cards get one: Google bills each photo fetched, and a
- * fully scrolled list of twenty would be twenty requests. `loading="lazy"` is
- * a second brake on the same cost, keeping off-screen cards free until they
- * are reached. The fixed aspect ratio reserves the space so the list does not
- * jump as images arrive.
+ * Google bills each photo fetched, so loading one for every card charged for
+ * images nobody had asked to see. Cards within `photoLimit` offer a button
+ * instead; the image is only requested when someone taps it, which means an
+ * ordinary search costs nothing in photos.
  */
 function photoHtml(place, index, limit) {
   if (index >= limit || !place.photoUrl) return '';
+
+  return `
+    <div class="place__photo-slot" data-photo-slot="${escapeHtml(place.id)}">
+      <button class="place__photo-btn" type="button" data-photo="${escapeHtml(place.id)}"
+              aria-label="Show photo of ${escapeHtml(place.name)}">
+        <span aria-hidden="true">📷</span> Show photo
+      </button>
+    </div>
+  `;
+}
+
+/**
+ * Swap a photo button for the image it stands in for.
+ *
+ * The fetch — and the charge — happens here, on the tap, and only once: the
+ * button is replaced, so a second tap is not possible.
+ */
+function revealPhoto(id) {
+  const place = state.places.find((entry) => entry.id === id);
+  const slot = document.querySelector(`[data-photo-slot="${CSS.escape(id)}"]`);
+  if (!place?.photoUrl || !slot) return;
 
   const credit = place.photoAttribution;
   const creditHtml = credit
@@ -196,9 +216,9 @@ function photoHtml(place, index, limit) {
       : escapeHtml(credit.name)}</figcaption>`
     : '';
 
-  return `
+  slot.innerHTML = `
     <figure class="place__photo">
-      <img src="${escapeHtml(place.photoUrl)}" alt="" loading="lazy" decoding="async" />
+      <img src="${escapeHtml(place.photoUrl)}" alt="" decoding="async" />
       ${creditHtml}
     </figure>
   `;
@@ -470,6 +490,12 @@ function bindEvents() {
   // With both panes on screen, "Show on map" only has to bring the map into
   // view — on a phone it is directly above the list, off-screen.
   $('place-list').addEventListener('click', (event) => {
+    const photoId = event.target.closest('[data-photo]')?.dataset.photo;
+    if (photoId) {
+      revealPhoto(photoId);
+      return;
+    }
+
     const id = event.target.closest('[data-focus]')?.dataset.focus;
     if (!id) return;
     mapView.focusPlace(id);
