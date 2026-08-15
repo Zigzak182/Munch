@@ -1,8 +1,8 @@
 # Munch
 
 **Hunger diagnostics.** Two questions — how it should *feel* and what it should
-*taste* of — then Munch decides the cuisine for you, names the dish you're
-actually craving, and maps the closest places that serve it.
+*taste* of — then Munch decides the cuisine for you and maps the closest places
+that fit.
 
 ```
 Crunchy · Soft · Saucy · Crispy      →  what it feels like
@@ -80,13 +80,21 @@ if a free allowance is the priority.
 3. **Diagnosis** — dishes within that cuisine are scored on texture and
    flavour, each paying a bonus when the answer matches the dish's *defining*
    trait — the first tag in its list. Gyoza is soft before it is crispy, so a
-   craving for crispy reaches tonkatsu first. The top three are shown, with
-   the runner-up cuisines offered below as an override.
+   craving for crispy reaches tonkatsu first.
+
+   Those dishes are **never displayed**. Printing a dish name above a list of
+   venues implies those venues serve it, and no available API can confirm what
+   is on a restaurant's current menu — Google Places has no menu field, and the
+   only live sources are per-merchant POS or partner-only delivery APIs. So the
+   screen shows the craving profile, and venue cards link out to the business
+   for the real menu. The dishes stay internal, choosing the cuisine and
+   sharpening the search terms.
 4. **Reveal** — a full-screen moment (~4.7s) shuffles the cuisines, decelerating
    into the chosen one like a wheel coming to rest, then bursts. Since the app
    decides for you, the decision has to be seen being made, or it reads as a
-   label that was always there. Tap or press any key to skip, and it collapses
-   to ~650ms with no confetti under `prefers-reduced-motion`.
+   label that was always there. It lands on the cuisine alone — no dish, for
+   the reason above. Tap or press any key to skip, and it collapses to ~650ms
+   with no confetti under `prefers-reduced-motion`.
 5. **Location** — requested automatically once the reveal ends, via the
    browser's Geolocation API; Nominatim handles typed place names.
 6. **Venues** — one Places Nearby Search within 5 km, filtered server-side by
@@ -134,7 +142,8 @@ the failure is shown on the results screen and the list carries on.
 
 ## Adding to the catalogue
 
-Dishes live in `src/data.js`. Each one declares every texture and flavour it
+Dishes live in `src/data.js`. They are scoring data, not display copy — no
+dish name reaches the screen. Each declares every texture and flavour it
 honestly satisfies, plus `terms` used to match venue names:
 
 ```js

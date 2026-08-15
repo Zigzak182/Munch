@@ -113,23 +113,19 @@ function renderStep() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+/**
+ * The diagnosis is a craving profile, not a dish.
+ *
+ * Naming a specific dish above a list of venues implies those venues serve it,
+ * and no available API can tell us what is on a restaurant's current menu —
+ * Google Places has no menu field. So the matched dishes stay internal, where
+ * they pick the cuisine and sharpen the venue search, and the screen claims
+ * only what it can stand behind. Venue cards link out to the business instead.
+ */
 function renderDiagnosis() {
   const result = diagnose(state);
   $('results-title').textContent = result.headline;
   $('diagnosis-verdict').textContent = result.verdict;
-
-  const list = $('dish-list');
-  list.innerHTML = '';
-  result.matches.forEach((dish, index) => {
-    const item = document.createElement('li');
-    item.className = 'dish';
-    if (index === 0) item.classList.add('dish--top');
-    item.innerHTML = `
-      <p class="dish__name">${escapeHtml(dish.name)}</p>
-      <p class="dish__note">${escapeHtml(dish.note)}</p>
-    `;
-    list.append(item);
-  });
 
   renderSwap(result);
   return result;
@@ -228,6 +224,7 @@ function renderList() {
       <div class="place__links">
         <a href="${directionsUrl(place)}" target="_blank" rel="noreferrer">Directions</a>
         ${place.website ? `<a href="${escapeHtml(place.website)}" target="_blank" rel="noreferrer">Website</a>` : ''}
+        ${place.mapsUrl ? `<a href="${escapeHtml(place.mapsUrl)}" target="_blank" rel="noreferrer">Menu &amp; photos</a>` : ''}
         ${place.phone ? `<a href="tel:${escapeHtml(place.phone.replace(/\s/g, ''))}">Call</a>` : ''}
         <button class="link-btn" type="button" data-focus="${escapeHtml(place.id)}">Show on map</button>
       </div>

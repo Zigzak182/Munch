@@ -67,7 +67,7 @@ const prefersReducedMotion = () =>
 /**
  * Play the reveal for a diagnosis.
  *
- * @param {{cuisine: object, matches: object[]}} result
+ * @param {{cuisine: object}} result
  * @returns {Promise<void>} resolves once the overlay is fully dismissed
  */
 export function playReveal(result) {
@@ -78,7 +78,6 @@ export function playReveal(result) {
   const emoji = $('reveal-emoji');
   const caption = $('reveal-caption');
   const cuisineName = $('reveal-cuisine');
-  const dishName = $('reveal-dish');
   const burst = $('reveal-burst');
 
   return new Promise((resolve) => {
@@ -147,7 +146,6 @@ export function playReveal(result) {
       emoji.textContent = result.cuisine.emoji;
       caption.textContent = 'Your diagnosis';
       cuisineName.textContent = result.cuisine.label;
-      dishName.textContent = result.matches[0]?.name ?? '';
       if (!prefersReducedMotion()) throwConfetti();
     };
 
@@ -157,7 +155,6 @@ export function playReveal(result) {
     overlay.setAttribute('aria-hidden', 'false');
     caption.textContent = 'Reading your craving…';
     cuisineName.textContent = '';
-    dishName.textContent = '';
     emoji.textContent = SHUFFLE[0];
     if (burst) burst.innerHTML = '';
 

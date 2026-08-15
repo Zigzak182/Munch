@@ -280,26 +280,6 @@ a { color: var(--accent); }
   max-width: 60ch;
 }
 
-.dishes {
-  list-style: none;
-  margin: 6px 0 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-}
-
-.dish {
-  padding: 16px;
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-
-.dish--top { border-color: var(--accent); background: var(--accent-soft); }
-.dish__name { margin: 0 0 4px; font-weight: 650; }
-.dish__note { margin: 0; font-size: 13.5px; color: var(--text-muted); }
-
 /* Escape hatch from the derived cuisine — deliberately quiet, and below the
    diagnosis, so the app still reads as having made up its mind. */
 .swap {
@@ -459,10 +439,7 @@ a { color: var(--accent); }
   line-height: 1.1;
 }
 
-.reveal__dish { margin: 0; font-size: 18px; color: var(--text-muted); }
-
 .reveal[data-phase="landed"] .reveal__cuisine { animation: rise 0.55s ease both 0.14s; }
-.reveal[data-phase="landed"] .reveal__dish { animation: rise 0.55s ease both 0.3s; }
 
 @keyframes rise {
   from { opacity: 0; transform: translateY(10px); }
