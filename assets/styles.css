@@ -597,7 +597,29 @@ a { color: var(--accent); }
 
 .place__head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
 
-.place__photo { margin: 2px 0 4px; }
+.place__photo-slot { margin: 2px 0 4px; }
+
+/* Photos cost money per fetch, so the card offers rather than loads. */
+.place__photo-btn {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+
+.place__photo-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.place__photo { margin: 0; }
 
 .place__photo img {
   display: block;

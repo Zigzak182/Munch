@@ -24,20 +24,19 @@ window.MUNCH_CONFIG = {
   googleMapsApiKey: 'AIzaSyAgzQbVlTCiPP0zL-Y_NPdKj3yOmNNYjqc',
 
   /**
-   * Show photos on venue cards.
+   * Offer photos on venue cards.
    *
-   * Photos are billed per image fetched, separately from the search itself,
-   * so this is the most expensive part of a results screen. Set to false to
-   * turn them off entirely.
+   * Photos are billed per image fetched, so they load on tap rather than
+   * automatically — a search costs nothing in photos unless someone asks to
+   * see one. Set to false to remove the option entirely.
    */
   showPhotos: true,
 
   /**
-   * How many cards may show a photo, counted from the top of the list.
+   * How many cards offer a "Show photo" button, counted from the top.
    *
-   * A fully scrolled list of 20 venues would be 20 billed photo requests.
-   * Capping the top few keeps the visual hook on the results you actually
-   * look at. Raise it for a richer list, lower it (or 0) to spend less.
+   * Nothing is fetched until one is tapped, so this bounds how many photos a
+   * single results screen could ever charge for. 0 removes the buttons.
    */
   photoLimit: 3,
 

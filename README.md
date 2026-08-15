@@ -72,21 +72,22 @@ the **Enterprise** SKU — the most expensive tier. Trim `FIELDS` in
 `src/providers/google.js` from the bottom up to drop into the cheaper Pro tier
 if a free allowance is the priority.
 
-**Photos are billed separately, per image fetched**, which makes them the most
-expensive part of a results screen: a fully scrolled list of 20 venues would be
-20 requests on top of the one search. Three brakes, all in `munch.config.js`:
+**Photos are billed separately, per image fetched**, so they are **not loaded
+automatically**. The top `photoLimit` cards (default 3) show a "Show photo"
+button, and the image — and the charge — arrives only when someone taps it. An
+ordinary search costs nothing in photos.
 
 | setting | effect |
 | --- | --- |
-| `photoLimit: 3` (default) | only the top three cards can show a photo |
-| lazy loading (always on) | off-screen cards cost nothing until scrolled to |
-| `showPhotos: false` | no photos at all, no photo requests |
+| `photoLimit: 3` (default) | how many cards offer the button |
+| `photoLimit: 0` | no buttons |
+| `showPhotos: false` | same, and no photo URLs are built at all |
 
-The limit follows display order, so re-sorting moves the photos to whatever is
-now on top. Counting the billable units per search — one Nearby Search, up to
-`photoLimit` photo fetches, one map load, and a geocode only if a place name
-was typed — against Google's current pricing is the way to estimate a bill;
-set a budget alert either way.
+The limit follows display order, so re-sorting moves the buttons to whatever is
+now on top. Billable units per search: one Nearby Search, one map load, a
+geocode only if a place name was typed, and a photo only per tap. Multiply
+against Google's current pricing to estimate a bill; set a budget alert either
+way.
 
 ## How it works
 
@@ -121,11 +122,11 @@ set a budget alert either way.
    the cuisine's `includedPrimaryTypes` and ranked by distance, widening to
    15 km only when it finds nothing at all. The OpenStreetMap fallback runs
    the equivalent Overpass query when no key is configured.
-7. **Results** — each card carries a credited photo under the name, ranked by
-   match quality first and distance second, with the map and the sortable list
-   on screen together: stacked on a phone, side by side
-   from 860px with the map sticky as the list scrolls past. Every venue links
-   out to directions, its website and its Google listing.
+7. **Results** — ranked by match quality first and distance second, with the
+   map and the sortable list on screen together: stacked on a phone, side by
+   side from 860px with the map sticky as the list scrolls past. The top few
+   cards offer a photo under the name, loaded on tap and credited when shown.
+   Every venue links out to directions, its website and its Google listing.
 
 ## Data sources
 
