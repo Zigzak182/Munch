@@ -9,8 +9,10 @@
  * normal for Maps Platform keys, but it is only safe if you restrict it:
  *
  *   1. Google Cloud Console → APIs & Services → Credentials → your key
- *   2. Application restrictions → Websites → add your site, e.g.
- *        https://yourname.github.io/*
+ *   2. Application restrictions → Websites → add every host the app is
+ *      served from:
+ *        https://www.what2food.com/*
+ *        https://what2food.com/*
  *   3. API restrictions → restrict to: Maps JavaScript API, Places API (New),
  *      Geocoding API
  *   4. Set a billing budget alert so a leaked key cannot run up a bill
