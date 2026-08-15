@@ -176,6 +176,32 @@ function badges(place) {
   return marks.join('');
 }
 
+/**
+ * Venue photo, credited.
+ *
+ * `loading="lazy"` is not just a performance nicety here — Google bills each
+ * photo fetch, so cards below the fold cost nothing until they are scrolled
+ * to. The fixed aspect ratio reserves the space so the list does not jump as
+ * images arrive.
+ */
+function photoHtml(place) {
+  if (!place.photoUrl) return '';
+
+  const credit = place.photoAttribution;
+  const creditHtml = credit
+    ? `<figcaption class="place__credit">Photo: ${credit.uri
+      ? `<a href="${escapeHtml(credit.uri)}" target="_blank" rel="noreferrer">${escapeHtml(credit.name)}</a>`
+      : escapeHtml(credit.name)}</figcaption>`
+    : '';
+
+  return `
+    <figure class="place__photo">
+      <img src="${escapeHtml(place.photoUrl)}" alt="" loading="lazy" decoding="async" />
+      ${creditHtml}
+    </figure>
+  `;
+}
+
 /** Star rating with review count, when the provider supplies one. */
 function ratingHtml(place) {
   if (typeof place.rating !== 'number') return '';
@@ -211,6 +237,7 @@ function renderList() {
         <h3 class="place__name">${escapeHtml(place.name)}</h3>
         <span class="place__distance">${formatDistance(place.distance)}</span>
       </div>
+      ${photoHtml(place)}
       <p class="place__meta">
         <span class="place__type">${escapeHtml(place.typeLabel)}</span>
         · ~${walkingMinutes(place.distance)} min walk

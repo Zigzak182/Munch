@@ -68,6 +68,11 @@ the **Enterprise** SKU — the most expensive tier. Trim `FIELDS` in
 `src/providers/google.js` from the bottom up to drop into the cheaper Pro tier
 if a free allowance is the priority.
 
+**Photos are billed separately, per image fetched** — a list of 20 venues is up
+to 20 photo requests on top of the search. Cards load them lazily, so images
+below the fold cost nothing until scrolled to, and `showPhotos: false` in
+`munch.config.js` turns them off entirely.
+
 ## How it works
 
 1. **Quiz** — two single-choice screens. Answers are held in memory and
@@ -101,8 +106,9 @@ if a free allowance is the priority.
    the cuisine's `includedPrimaryTypes` and ranked by distance, widening to
    15 km only when it finds nothing at all. The OpenStreetMap fallback runs
    the equivalent Overpass query when no key is configured.
-7. **Results** — ranked by match quality first, distance second, with the map
-   and the sortable list on screen together: stacked on a phone, side by side
+7. **Results** — each card carries a credited photo under the name, ranked by
+   match quality first and distance second, with the map and the sortable list
+   on screen together: stacked on a phone, side by side
    from 860px with the map sticky as the list scrolls past. Every venue links
    out to directions, its website and its Google listing.
 

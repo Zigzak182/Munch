@@ -27,3 +27,11 @@ export function mapId() {
   const id = config().mapId;
   return typeof id === 'string' && id.trim().length > 0 ? id.trim() : DEMO_MAP_ID;
 }
+
+/**
+ * Whether venue cards show a photo.
+ *
+ * Defaults to on. Photos are a separate billable request per image, so this
+ * is the one knob most likely to be turned off on a busy deployment.
+ */
+export const showPhotos = () => config().showPhotos !== false;

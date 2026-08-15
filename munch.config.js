@@ -22,6 +22,15 @@ window.MUNCH_CONFIG = {
   googleMapsApiKey: 'AIzaSyAgzQbVlTCiPP0zL-Y_NPdKj3yOmNNYjqc',
 
   /**
+   * Show a photo on each venue card.
+   *
+   * Photos are billed per image fetched, separately from the search itself —
+   * a list of 20 venues is 20 photo requests. Set to false to turn them off
+   * without touching code.
+   */
+  showPhotos: true,
+
+  /**
    * Optional Map ID, used for cloud-based map styling. Leave empty to use
    * Google's demo style. Create one under Google Maps Platform → Map
    * Management to restyle the map without touching code.

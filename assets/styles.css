@@ -596,6 +596,29 @@ a { color: var(--accent); }
 }
 
 .place__head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+
+.place__photo { margin: 2px 0 4px; }
+
+.place__photo img {
+  display: block;
+  width: 100%;
+  /* Reserved up front so arriving images do not shift the list. Wide rather
+     than square: with 20 results, card height is what makes the list
+     unscannable. */
+  aspect-ratio: 2 / 1;
+  object-fit: cover;
+  border-radius: 10px;
+  background: var(--bg-sunken);
+}
+
+.place__credit {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+
+.place__credit a { color: inherit; }
 .place__name { margin: 0; font-size: 17px; letter-spacing: -0.01em; }
 .place__distance { color: var(--accent); font-weight: 650; font-size: 14px; white-space: nowrap; }
 .place__meta { margin: 0; font-size: 13.5px; color: var(--text-muted); }

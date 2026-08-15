@@ -7,6 +7,7 @@
  */
 
 import { loadGoogle } from '../google.js';
+import { showPhotos } from '../config.js';
 import { MAX_RESULTS, PlacesError, SEARCH_RADIUS, WIDE_RADIUS, rankPlaces } from '../places-shared.js';
 
 /**
@@ -30,7 +31,12 @@ const FIELDS = [
   'regularOpeningHours',
   'websiteURI',
   'nationalPhoneNumber',
+  'photos',
 ];
+
+/** Requested photo size. Cards are never wider than this on a 2x screen. */
+const PHOTO_WIDTH = 720;
+const PHOTO_HEIGHT = 450;
 
 /** Nearby Search returns at most 20 per call. */
 const PAGE_LIMIT = 20;
@@ -53,6 +59,36 @@ export function formatPriceLevel(level) {
 }
 
 /**
+ * First usable photo for a place, with its attribution.
+ *
+ * Google bills each photo fetch separately from the search, so this respects
+ * the `showPhotos` switch. Attribution is not optional — the Places terms
+ * require crediting the photographer wherever the image is shown — so a photo
+ * without one is dropped rather than displayed uncredited.
+ */
+export function photoFor(place, { enabled = showPhotos() } = {}) {
+  const photo = Array.isArray(place.photos) ? place.photos[0] : null;
+  if (!enabled || !photo) return { url: '', attribution: null };
+
+  let url = '';
+  try {
+    url = typeof photo.getURI === 'function'
+      ? photo.getURI({ maxWidth: PHOTO_WIDTH, maxHeight: PHOTO_HEIGHT })
+      : photo.uri ?? '';
+  } catch {
+    return { url: '', attribution: null };
+  }
+
+  const author = photo.authorAttributions?.[0];
+  return {
+    url: url || '',
+    attribution: author?.displayName
+      ? { name: author.displayName, uri: author.uri ?? '' }
+      : null,
+  };
+}
+
+/**
  * Turn a Place from the SDK into our normalised shape.
  *
  * Written against plain properties so it can be exercised with fixtures — the
@@ -68,6 +104,7 @@ export function normalizePlace(place) {
   if (!name) return null;
 
   const types = place.types ?? [];
+  const photo = photoFor(place);
   const hours = place.regularOpeningHours;
   const today = Array.isArray(hours?.weekdayDescriptions)
     // weekdayDescriptions starts on Monday; JS getDay() starts on Sunday.
@@ -88,6 +125,8 @@ export function normalizePlace(place) {
     website: place.websiteURI ?? '',
     phone: place.nationalPhoneNumber ?? '',
     mapsUrl: place.googleMapsURI ?? '',
+    photoUrl: photo.url,
+    photoAttribution: photo.attribution,
     openNow: typeof hours?.openNow === 'boolean' ? hours.openNow : null,
     // Strip the leading weekday, which the card already implies.
     hoursText: today.replace(/^[A-Za-z]+:\s*/, ''),
