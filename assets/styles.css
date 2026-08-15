@@ -17,10 +17,21 @@
   --warn: #ffd166;
   --error: #ff8a80;
 
-  --radius: 14px;
-  --radius-lg: 20px;
+  --radius: 18px;
+  --radius-lg: 26px;
+  --radius-pill: 999px;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-  --maxw: 940px;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.22);
+  --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.3), 0 14px 34px rgba(0, 0, 0, 0.3);
+  --maxw: 1120px;
+
+  /* Background wash. Four soft blooms, no images and no blur filter — the
+     whole effect is one painted layer that never repaints on scroll. */
+  --glow-1: rgba(255, 122, 61, 0.26);
+  --glow-2: rgba(255, 186, 84, 0.18);
+  --glow-3: rgba(122, 92, 224, 0.20);
+  --glow-4: rgba(255, 94, 120, 0.14);
+  --veil: rgba(0, 0, 0, 0.26);
 }
 
 @media (prefers-color-scheme: light) {
@@ -39,6 +50,14 @@
     --warn: #8a6100;
     --error: #b3261e;
     --shadow: 0 10px 28px rgba(90, 60, 40, 0.12);
+    --shadow-card: 0 1px 2px rgba(120, 80, 50, 0.06), 0 8px 24px rgba(120, 80, 50, 0.09);
+    --shadow-lift: 0 2px 6px rgba(120, 80, 50, 0.10), 0 16px 36px rgba(120, 80, 50, 0.14);
+
+    --glow-1: rgba(255, 128, 60, 0.30);
+    --glow-2: rgba(255, 196, 96, 0.34);
+    --glow-3: rgba(146, 124, 240, 0.20);
+    --glow-4: rgba(255, 116, 138, 0.18);
+    --veil: rgba(255, 255, 255, 0.30);
   }
 }
 
@@ -50,6 +69,41 @@ body {
   color: var(--text);
   font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * The background wash.
+ *
+ * A fixed pseudo-element rather than `background-attachment: fixed`, which
+ * janks badly on iOS. Static gradients on their own layer: painted once,
+ * composited thereafter, and nothing to download.
+ */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(46% 34% at 6% -6%, var(--glow-1), transparent 64%),
+    radial-gradient(42% 32% at 100% 4%, var(--glow-2), transparent 62%),
+    radial-gradient(56% 40% at 88% 96%, var(--glow-3), transparent 66%),
+    radial-gradient(50% 34% at 14% 104%, var(--glow-4), transparent 64%);
+}
+
+/*
+ * A veil over the blooms, so the wash stays behind the content instead of
+ * competing with it. Raising the glow alphas alone reads as busy; raising
+ * them and then knocking the whole layer back keeps the colour visible at
+ * the edges while the middle — where the cards sit — settles down.
+ */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(78% 60% at 50% 46%, var(--veil), transparent 78%);
 }
 
 a { color: var(--accent); }
@@ -72,11 +126,14 @@ a { color: var(--accent); }
 .app {
   max-width: var(--maxw);
   margin: 0 auto;
-  padding: clamp(16px, 4vw, 32px) clamp(16px, 4vw, 24px) 48px;
+  padding: clamp(12px, 3.5vw, 34px) clamp(12px, 3.5vw, 28px)
+           max(28px, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: clamp(14px, 2.4vw, 22px);
   min-height: 100vh;
+  /* dvh tracks the collapsing mobile toolbars; vh above is the fallback. */
+  min-height: 100dvh;
 }
 
 .app__header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
@@ -161,8 +218,21 @@ a { color: var(--accent); }
 
 /* ---------------------------------------------------------------- screens */
 
-.screen { display: flex; flex-direction: column; gap: 14px; }
+/*
+ * The screens take the slack between the header and the footer. Without
+ * this the footer sits at the bottom (margin-top: auto) and every screen
+ * bunches against the header, leaving a dead band down the middle — most
+ * of the viewport on a desktop, where there is the most slack to strand.
+ */
+.screens { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+
+.screen { display: flex; flex-direction: column; gap: 14px; flex: 1 1 auto; }
 .screen[hidden] { display: none; }
+
+/* The two question screens hold four cards and nothing else, so they are
+   centred in what is left; the results screen stays top-aligned, since it
+   grows past the fold on its own. */
+.screen--quiz { justify-content: center; gap: clamp(10px, 1.8vh, 18px); }
 .screen__title { margin: 0; font-size: clamp(26px, 5vw, 38px); line-height: 1.15; letter-spacing: -0.03em; }
 .screen__title:focus { outline: none; }
 .screen__sub { margin: 0; color: var(--text-muted); max-width: 56ch; }
@@ -210,6 +280,14 @@ a { color: var(--accent); }
   flex-direction: column;
   gap: 4px;
   padding: 16px 14px;
+  /* Sized against the viewport so the four cards feel like the page rather
+     than a strip pinned under the header. The vh term keeps short screens
+     honest — it shrinks before anything is pushed below the fold. */
+  min-height: clamp(112px, 18vh, 190px);
+  /* Centred rather than pinned top-and-bottom: the blurbs wrap to different
+     line counts, and anchoring the text to the floor puts the four labels at
+     four different heights. */
+  justify-content: center;
   text-align: left;
   background: var(--bg-raised);
   border: 1px solid var(--border);
@@ -220,14 +298,22 @@ a { color: var(--accent); }
   transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
 }
 
-.option:hover { transform: translateY(-2px); border-color: var(--border-strong); }
+.option { box-shadow: var(--shadow-card); }
+
+@media (hover: hover) {
+  .option:hover {
+    transform: translateY(-3px);
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-lift);
+  }
+}
 
 .option[aria-checked="true"] {
   border-color: var(--accent);
   background: var(--accent-soft);
 }
 
-.option__emoji { font-size: 28px; line-height: 1; }
+.option__emoji { font-size: clamp(28px, 4.2vh, 44px); line-height: 1; margin-bottom: 6px; }
 .option__label { font-size: 17px; font-weight: 650; letter-spacing: -0.01em; }
 .option__blurb { font-size: 13px; color: var(--text-muted); }
 
@@ -273,7 +359,7 @@ a { color: var(--accent); }
   min-width: 0;
 }
 
-.select { border-radius: 10px; padding: 7px 10px; }
+.select { border-radius: 12px; padding: 7px 12px; }
 
 .link-btn {
   all: unset;
@@ -478,10 +564,11 @@ a { color: var(--accent); }
 /* ---------------------------------------------------------------- locator */
 
 .locator {
-  padding: 16px;
+  padding: clamp(14px, 2.5vw, 20px);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   background: var(--bg-sunken);
+  box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -535,7 +622,20 @@ a { color: var(--accent); }
 }
 
 @media (min-width: 860px) {
-  .results__panes { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); }
+  .results__panes { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 20px; }
+  .screen__title { font-size: clamp(34px, 3.6vw, 46px); }
+  .diagnosis__verdict { font-size: 20px; }
+
+  /* A desktop window is mostly slack. Rather than leave four small cards
+     floating in it, the question reads as a lede and the cards take real
+     room — the same layout, sized for the screen it is actually on. */
+  .screen--quiz .screen__sub { font-size: 20px; max-width: 62ch; }
+  .screen--quiz .options { gap: 18px; }
+  .screen--quiz .option { min-height: clamp(150px, 21vh, 220px); padding: 24px 22px; }
+  .screen--quiz .option__label { font-size: 20px; }
+  .screen--quiz .option__blurb { font-size: 14.5px; }
+  .places { grid-template-columns: 1fr; }
+  #map { height: clamp(420px, 62vh, 640px); }
 
   .results__map {
     position: sticky;
@@ -551,11 +651,12 @@ a { color: var(--accent); }
 .results__map[hidden] { display: none; }
 
 #map {
-  height: clamp(280px, 42vh, 460px);
+  height: clamp(300px, 46vh, 520px);
   width: 100%;
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   background: var(--bg-sunken);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
 }
 
@@ -577,7 +678,7 @@ a { color: var(--accent); }
 /* A configuration problem the user has to fix — key missing or rejected. */
 .notice {
   margin: 0;
-  padding: 12px 14px;
+  padding: 12px 16px;
   border-radius: var(--radius);
   border: 1px solid var(--warn);
   background: var(--accent-soft);
@@ -610,9 +711,19 @@ a { color: var(--accent); }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-raised);
+  box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
   gap: 6px;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
+}
+
+@media (hover: hover) {
+  .place:hover {
+    transform: translateY(-2px);
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-lift);
+  }
 }
 
 .place__head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
@@ -622,9 +733,9 @@ a { color: var(--accent); }
 /* Photos cost money per fetch, so the card offers rather than loads. */
 .place__photo-btn {
   width: 100%;
-  padding: 9px 12px;
+  padding: 10px 12px;
   border: 1px dashed var(--border-strong);
-  border-radius: 10px;
+  border-radius: 14px;
   background: transparent;
   color: var(--text-muted);
   font: inherit;
@@ -649,7 +760,7 @@ a { color: var(--accent); }
      unscannable. */
   aspect-ratio: 2 / 1;
   object-fit: cover;
-  border-radius: 10px;
+  border-radius: 14px;
   background: var(--bg-sunken);
 }
 
@@ -687,9 +798,13 @@ a { color: var(--accent); }
 .place__links { display: flex; gap: 14px; flex-wrap: wrap; font-size: 14px; margin-top: 2px; }
 
 @media (max-width: 520px) {
-  .locator__actions { flex-direction: column; align-items: stretch; }
+  /* `wrap` here would size the flex line to the widest item rather than to
+     the container, and the search row is wider than a small handset — which
+     is a sideways scrollbar, not a wrapped row. Stacked, there is nothing
+     left to wrap. */
+  .locator__actions { flex-direction: column; align-items: stretch; flex-wrap: nowrap; }
   /* The row basis is a main-axis size, which becomes height once the parent
      stacks — leave the form to size itself instead. */
-  .locator__form { flex: 0 0 auto; }
+  .locator__form { flex: 0 0 auto; min-width: 0; }
   .btn--primary { text-align: center; }
 }

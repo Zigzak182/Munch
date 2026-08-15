@@ -10,7 +10,7 @@
 
 import { CUISINES, FLAVORS, TEXTURES } from './data.js';
 import { diagnose } from './diagnosis.js';
-import { LocationError, currentPosition, formatDistance, walkingMinutes } from './geo.js';
+import { LocationError, currentPosition, formatDistance, travelTime } from './geo.js';
 import { PlacesError, activeProvider, findNearbyPlaces, geocode } from './places.js';
 import { photoLimit } from './config.js';
 import { playReveal } from './reveal.js';
@@ -266,7 +266,7 @@ function renderList() {
       ${photoHtml(place, index, limit)}
       <p class="place__meta">
         <span class="place__type">${escapeHtml(place.typeLabel)}</span>
-        · ~${walkingMinutes(place.distance)} min walk
+        · ${travelTime(place.distance).label}
       </p>
       ${ratingHtml(place)}
       ${place.address ? `<p class="place__meta">${escapeHtml(place.address)}</p>` : ''}

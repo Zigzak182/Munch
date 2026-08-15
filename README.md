@@ -134,6 +134,10 @@ way.
    cards offer a photo under the name, loaded on tap and credited when shown.
    Every venue links out to directions, its website and its Google listing.
 
+   Travel time switches mode with distance: a walk up to 2 km, a drive past
+   it. Quoting "~40 min walk" for somewhere across town is not advice anyone
+   acts on.
+
 ## Data sources
 
 Venues, geocoding and the map come from **Google Maps Platform** (Places API
