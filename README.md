@@ -15,6 +15,8 @@ Deciding the cuisine is the point: picking it yourself is the step that stalls
 people. The results screen still lists the runner-up cuisines underneath, so
 the decision is easy to overrule — but you get an answer first.
 
+Live at **[www.what2food.com](https://www.what2food.com)**.
+
 ## Running it
 
 No build step and no dependencies — plain ES modules, so the app just needs to
@@ -49,8 +51,10 @@ the project the key belongs to.
 **The key is public.** It ships to the browser, which is normal for Maps
 Platform keys but only safe if you restrict it:
 
-- *Application restrictions → Websites*: add your site, e.g.
-  `https://yourname.github.io/*`
+- *Application restrictions → Websites*: add **every** host the app is served
+  from — `https://www.what2food.com/*` and `https://what2food.com/*`. A key
+  restricted to one host fails with `RefererNotAllowedMapError` on the other,
+  which looks like a blank map and no venues rather than an obvious error
 - *API restrictions*: limit it to the three APIs above
 - Set a **billing budget alert**, so a scraped key cannot quietly run up a bill
 
@@ -138,6 +142,7 @@ When a search comes up empty the app says so rather than inventing places.
 ## Layout
 
 ```
+CNAME                 the custom domain GitHub Pages serves from
 munch.config.js       your API key — the one file you edit to deploy
 index.html            markup for the three screens and the reveal overlay
 assets/styles.css     styling — dark-first, light via prefers-color-scheme
