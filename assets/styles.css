@@ -280,26 +280,6 @@ a { color: var(--accent); }
   max-width: 60ch;
 }
 
-.dishes {
-  list-style: none;
-  margin: 6px 0 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-}
-
-.dish {
-  padding: 16px;
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-
-.dish--top { border-color: var(--accent); background: var(--accent-soft); }
-.dish__name { margin: 0 0 4px; font-weight: 650; }
-.dish__note { margin: 0; font-size: 13.5px; color: var(--text-muted); }
-
 /* Escape hatch from the derived cuisine — deliberately quiet, and below the
    diagnosis, so the app still reads as having made up its mind. */
 .swap {
@@ -459,10 +439,7 @@ a { color: var(--accent); }
   line-height: 1.1;
 }
 
-.reveal__dish { margin: 0; font-size: 18px; color: var(--text-muted); }
-
 .reveal[data-phase="landed"] .reveal__cuisine { animation: rise 0.55s ease both 0.14s; }
-.reveal[data-phase="landed"] .reveal__dish { animation: rise 0.55s ease both 0.3s; }
 
 @keyframes rise {
   from { opacity: 0; transform: translateY(10px); }
@@ -528,30 +505,33 @@ a { color: var(--accent); }
 
 .results__count { margin: 0; color: var(--text-muted); font-size: 14px; }
 
-.toggle {
-  display: inline-flex;
-  padding: 3px;
-  border-radius: 999px;
-  background: var(--bg-sunken);
-  border: 1px solid var(--border);
+/* Map and list share the screen. On a phone they stack, map first; from
+   860px they sit side by side and the map sticks while the list scrolls. */
+.results__panes {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  align-items: start;
 }
 
-.toggle__btn {
-  border: 0;
-  background: transparent;
-  color: var(--text-muted);
-  font: inherit;
-  font-weight: 600;
-  font-size: 14px;
-  padding: 7px 18px;
-  border-radius: 999px;
-  cursor: pointer;
+@media (min-width: 860px) {
+  .results__panes { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); }
+
+  .results__map {
+    position: sticky;
+    top: 16px;
+  }
+
+  /* The list scrolls with the page rather than in its own box — a nested
+     scroll area next to a sticky map traps the wheel. */
+
+  .places { grid-template-columns: 1fr; margin-top: 0; }
 }
 
-.toggle__btn.is-active { background: var(--accent); color: var(--accent-text); }
+.results__map[hidden] { display: none; }
 
 #map {
-  height: clamp(320px, 52vh, 560px);
+  height: clamp(280px, 42vh, 460px);
   width: 100%;
   border-radius: var(--radius);
   border: 1px solid var(--border);
@@ -593,11 +573,12 @@ a { color: var(--accent); }
   gap: 8px;
   font-size: 13px;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .places {
   list-style: none;
-  margin: 12px 0 0;
+  margin: 0;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -615,6 +596,29 @@ a { color: var(--accent); }
 }
 
 .place__head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+
+.place__photo { margin: 2px 0 4px; }
+
+.place__photo img {
+  display: block;
+  width: 100%;
+  /* Reserved up front so arriving images do not shift the list. Wide rather
+     than square: with 20 results, card height is what makes the list
+     unscannable. */
+  aspect-ratio: 2 / 1;
+  object-fit: cover;
+  border-radius: 10px;
+  background: var(--bg-sunken);
+}
+
+.place__credit {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+
+.place__credit a { color: inherit; }
 .place__name { margin: 0; font-size: 17px; letter-spacing: -0.01em; }
 .place__distance { color: var(--accent); font-weight: 650; font-size: 14px; white-space: nowrap; }
 .place__meta { margin: 0; font-size: 13.5px; color: var(--text-muted); }

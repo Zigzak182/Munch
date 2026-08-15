@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { CUISINES } from '../src/data.js';
-import { formatPriceLevel, normalizePlace } from '../src/providers/google.js';
+import { formatPriceLevel, normalizePlace, photoFor } from '../src/providers/google.js';
 import { rankPlaces } from '../src/places-shared.js';
 
 /** A Place as the Maps JS SDK hands it over: `location` exposes methods. */
@@ -120,4 +120,59 @@ test('Google places rank by type match then distance, like OSM ones', () => {
   assert.deepEqual(ranked.map((place) => place.id), ['near', 'far', 'other']);
   assert.equal(ranked[0].tier, 0);
   assert.equal(ranked[2].tier, 2);
+});
+
+// --------------------------------------------------------------- photos
+
+const withPhoto = (overrides = {}) => sdkPlace({
+  photos: [{
+    getURI: ({ maxWidth, maxHeight }) => `https://photo.example/${maxWidth}x${maxHeight}.jpg`,
+    authorAttributions: [{ displayName: 'A. Diner', uri: 'https://maps.example/contrib' }],
+    ...overrides,
+  }],
+});
+
+test('the first photo is resolved at the requested size, with its credit', () => {
+  const place = normalizePlace(withPhoto());
+
+  assert.match(place.photoUrl, /^https:\/\/photo\.example\/\d+x\d+\.jpg$/);
+  assert.deepEqual(place.photoAttribution, {
+    name: 'A. Diner',
+    uri: 'https://maps.example/contrib',
+  });
+});
+
+test('a place with no photos yields no image', () => {
+  const place = normalizePlace(sdkPlace());
+  assert.equal(place.photoUrl, '');
+  assert.equal(place.photoAttribution, null);
+});
+
+test('an uncredited photo is dropped rather than shown without attribution', () => {
+  // The Places terms require crediting the photographer wherever the image
+  // appears, so a photo we cannot credit is not one we can display.
+  const { url, attribution } = photoFor({
+    photos: [{ getURI: () => 'https://photo.example/x.jpg', authorAttributions: [] }],
+  });
+
+  assert.equal(attribution, null);
+  assert.equal(url, 'https://photo.example/x.jpg');
+});
+
+test('photoFor honours the showPhotos switch', () => {
+  assert.equal(photoFor(withPhoto(), { enabled: false }).url, '');
+  assert.ok(photoFor(withPhoto(), { enabled: true }).url.length > 0);
+});
+
+test('a photo whose URI cannot be built is skipped, not thrown', () => {
+  const { url } = photoFor({
+    photos: [{ getURI: () => { throw new Error('quota'); } }],
+  }, { enabled: true });
+
+  assert.equal(url, '');
+});
+
+test('a plain uri photo works too', () => {
+  const { url } = photoFor({ photos: [{ uri: 'https://photo.example/plain.jpg' }] }, { enabled: true });
+  assert.equal(url, 'https://photo.example/plain.jpg');
 });

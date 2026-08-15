@@ -49,7 +49,6 @@
           <p class="screen__eyebrow">Diagnosis</p>
           <h1 class="screen__title" id="results-title"></h1>
           <p class="diagnosis__verdict" id="diagnosis-verdict"></p>
-          <ul class="dishes" id="dish-list"></ul>
           <div class="swap" id="cuisine-swap" hidden>
             <span class="swap__label" id="swap-label"></span>
             <div class="swap__options" id="swap-options"></div>
@@ -76,17 +75,6 @@
         <div class="results" id="results" hidden>
           <div class="results__bar">
             <p class="results__count" id="results-count"></p>
-            <div class="toggle" role="tablist" aria-label="Result view">
-              <button class="toggle__btn is-active" type="button" role="tab" data-view="map" aria-selected="true">Map</button>
-              <button class="toggle__btn" type="button" role="tab" data-view="list" aria-selected="false">List</button>
-            </div>
-          </div>
-
-          <div class="results__map" id="map-panel" role="tabpanel" aria-label="Map of nearby places">
-            <div id="map"></div>
-          </div>
-
-          <div class="results__list" id="list-panel" role="tabpanel" aria-label="List of nearby places" hidden>
             <label class="sort" for="sort-select">
               Sort
               <select class="select" id="sort-select">
@@ -95,7 +83,16 @@
                 <option value="name">Name (A–Z)</option>
               </select>
             </label>
-            <ul class="places" id="place-list"></ul>
+          </div>
+
+          <div class="results__panes">
+            <div class="results__map" id="map-panel" aria-label="Map of nearby places">
+              <div id="map"></div>
+            </div>
+
+            <div class="results__list" id="list-panel">
+              <ul class="places" id="place-list" aria-label="Nearby places"></ul>
+            </div>
           </div>
         </div>
 
@@ -119,7 +116,6 @@
       </div>
       <p class="reveal__caption" id="reveal-caption">Reading your craving…</p>
       <p class="reveal__cuisine" id="reveal-cuisine"></p>
-      <p class="reveal__dish" id="reveal-dish"></p>
       <p class="reveal__hint">tap to skip</p>
     </div>
   </div>

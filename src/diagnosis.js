@@ -1,6 +1,11 @@
 /**
- * Turns the three quiz answers into a diagnosis: a headline, the dishes that
- * best fit, and the search terms used to rank nearby venues.
+ * Turns the quiz answers into a diagnosis: a headline, the cuisine, and the
+ * search terms used to rank nearby venues.
+ *
+ * The matched dishes are deliberately *not* shown to the user. Naming a dish
+ * above a list of venues implies those venues serve it, and nothing available
+ * can confirm what is on a restaurant's current menu. They stay internal,
+ * where they choose the cuisine and sharpen the venue search.
  *
  * Pure functions only — no DOM, no network — so this module is unit-testable
  * and safe to import from anywhere.
@@ -161,6 +166,7 @@ export function diagnose(answers) {
     headline,
     verdict: DIAGNOSES[`${answers.texture}-${answers.flavor}`]
       ?? 'An unusual craving. We respect it.',
+    /** Internal only — never rendered. See the module comment. */
     matches,
     terms: searchTerms({ ...answers, cuisine: cuisine.id }, matches),
   };

@@ -12,7 +12,7 @@ import { CUISINES, FLAVORS, TEXTURES } from './data.js';
 import { diagnose } from './diagnosis.js';
 import { LocationError, currentPosition, formatDistance, walkingMinutes } from './geo.js';
 import { PlacesError, activeProvider, findNearbyPlaces, geocode } from './places.js';
-import { hasGoogle } from './config.js';
+import { photoLimit } from './config.js';
 import { playReveal } from './reveal.js';
 import * as mapView from './map.js';
 
@@ -35,7 +35,6 @@ const state = {
   originLabel: '',
   places: [],
   radius: 0,
-  view: 'map',
   sort: 'best',
 };
 
@@ -113,23 +112,19 @@ function renderStep() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+/**
+ * The diagnosis is a craving profile, not a dish.
+ *
+ * Naming a specific dish above a list of venues implies those venues serve it,
+ * and no available API can tell us what is on a restaurant's current menu —
+ * Google Places has no menu field. So the matched dishes stay internal, where
+ * they pick the cuisine and sharpen the venue search, and the screen claims
+ * only what it can stand behind. Venue cards link out to the business instead.
+ */
 function renderDiagnosis() {
   const result = diagnose(state);
   $('results-title').textContent = result.headline;
   $('diagnosis-verdict').textContent = result.verdict;
-
-  const list = $('dish-list');
-  list.innerHTML = '';
-  result.matches.forEach((dish, index) => {
-    const item = document.createElement('li');
-    item.className = 'dish';
-    if (index === 0) item.classList.add('dish--top');
-    item.innerHTML = `
-      <p class="dish__name">${escapeHtml(dish.name)}</p>
-      <p class="dish__note">${escapeHtml(dish.note)}</p>
-    `;
-    list.append(item);
-  });
 
   renderSwap(result);
   return result;
@@ -182,6 +177,33 @@ function badges(place) {
   return marks.join('');
 }
 
+/**
+ * Venue photo, credited.
+ *
+ * Only the first `limit` cards get one: Google bills each photo fetched, and a
+ * fully scrolled list of twenty would be twenty requests. `loading="lazy"` is
+ * a second brake on the same cost, keeping off-screen cards free until they
+ * are reached. The fixed aspect ratio reserves the space so the list does not
+ * jump as images arrive.
+ */
+function photoHtml(place, index, limit) {
+  if (index >= limit || !place.photoUrl) return '';
+
+  const credit = place.photoAttribution;
+  const creditHtml = credit
+    ? `<figcaption class="place__credit">Photo: ${credit.uri
+      ? `<a href="${escapeHtml(credit.uri)}" target="_blank" rel="noreferrer">${escapeHtml(credit.name)}</a>`
+      : escapeHtml(credit.name)}</figcaption>`
+    : '';
+
+  return `
+    <figure class="place__photo">
+      <img src="${escapeHtml(place.photoUrl)}" alt="" loading="lazy" decoding="async" />
+      ${creditHtml}
+    </figure>
+  `;
+}
+
 /** Star rating with review count, when the provider supplies one. */
 function ratingHtml(place) {
   if (typeof place.rating !== 'number') return '';
@@ -209,7 +231,11 @@ function renderList() {
   const list = $('place-list');
   list.innerHTML = '';
 
-  sortPlaces(state.places).forEach((place) => {
+  // Read once per render: the cap follows display order, so re-sorting moves
+  // the photos to whichever cards are now on top.
+  const limit = photoLimit();
+
+  sortPlaces(state.places).forEach((place, index) => {
     const item = document.createElement('li');
     item.className = 'place';
     item.innerHTML = `
@@ -217,6 +243,7 @@ function renderList() {
         <h3 class="place__name">${escapeHtml(place.name)}</h3>
         <span class="place__distance">${formatDistance(place.distance)}</span>
       </div>
+      ${photoHtml(place, index, limit)}
       <p class="place__meta">
         <span class="place__type">${escapeHtml(place.typeLabel)}</span>
         · ~${walkingMinutes(place.distance)} min walk
@@ -228,6 +255,7 @@ function renderList() {
       <div class="place__links">
         <a href="${directionsUrl(place)}" target="_blank" rel="noreferrer">Directions</a>
         ${place.website ? `<a href="${escapeHtml(place.website)}" target="_blank" rel="noreferrer">Website</a>` : ''}
+        ${place.mapsUrl ? `<a href="${escapeHtml(place.mapsUrl)}" target="_blank" rel="noreferrer">Menu &amp; photos</a>` : ''}
         ${place.phone ? `<a href="tel:${escapeHtml(place.phone.replace(/\s/g, ''))}">Call</a>` : ''}
         <button class="link-btn" type="button" data-focus="${escapeHtml(place.id)}">Show on map</button>
       </div>
@@ -251,31 +279,17 @@ function renderResults() {
 
   renderList();
 
+  // The map loads asynchronously and sits above the list; a failure hides it
+  // and leaves the list carrying the results on its own.
+  $('map-panel').hidden = !mapView.isAvailable();
   if (mapView.isAvailable()) {
-    setView(state.view);
-    // The map loads asynchronously; a failure leaves the list in charge.
     mapView.ensureMap($('map'))
       .then(() => mapView.renderPlaces(state.origin, state.places, popupHtml))
       .catch((error) => {
         showSetupNotice(error.message);
-        setView('list');
+        $('map-panel').hidden = true;
       });
-  } else {
-    setView('list');
   }
-}
-
-function setView(view) {
-  state.view = mapView.isAvailable() ? view : 'list';
-  view = state.view;
-  $('map-panel').hidden = view !== 'map';
-  $('list-panel').hidden = view !== 'list';
-  document.querySelectorAll('.toggle__btn').forEach((button) => {
-    const active = button.dataset.view === view;
-    button.classList.toggle('is-active', active);
-    button.setAttribute('aria-selected', String(active));
-  });
-  if (view === 'map') mapView.refresh();
 }
 
 /** Surface a configuration problem the user has to fix themselves. */
@@ -448,20 +462,18 @@ function bindEvents() {
     if (query) searchPlaceName(query);
   });
 
-  document.querySelectorAll('.toggle__btn').forEach((button) => {
-    button.addEventListener('click', () => setView(button.dataset.view));
-  });
-
   $('sort-select').addEventListener('change', (event) => {
     state.sort = event.target.value;
     renderList();
   });
 
+  // With both panes on screen, "Show on map" only has to bring the map into
+  // view — on a phone it is directly above the list, off-screen.
   $('place-list').addEventListener('click', (event) => {
     const id = event.target.closest('[data-focus]')?.dataset.focus;
     if (!id) return;
-    setView('map');
     mapView.focusPlace(id);
+    $('map-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   });
 
   // A pasted or edited hash is a same-document navigation, so nothing
@@ -497,10 +509,6 @@ function init() {
   STEPS.slice(0, RESULTS).forEach(renderOptions);
   renderAttribution();
   bindEvents();
-
-  if (!hasGoogle()) {
-    document.querySelector('.toggle')?.setAttribute('hidden', '');
-  }
   if (!restoreFromHash()) renderStep();
 }
 

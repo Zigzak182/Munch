@@ -154,3 +154,22 @@ test('every pair has a verdict written for it', () => {
     );
   }
 });
+
+test('nothing user-facing in a diagnosis names a dish', () => {
+  // The dish catalogue is scoring data. If a dish name ever reaches the
+  // headline or verdict, the screen starts implying that nearby venues serve
+  // it — which nothing can confirm.
+  const names = DISHES.map((dish) => dish.name.toLowerCase());
+
+  for (const pair of PAIRS) {
+    const result = diagnose(pair);
+    const visible = `${result.headline} ${result.verdict}`.toLowerCase();
+
+    for (const name of names) {
+      assert.ok(
+        !visible.includes(name),
+        `"${name}" leaked into user-facing copy for ${pair.texture}/${pair.flavor}`,
+      );
+    }
+  }
+});

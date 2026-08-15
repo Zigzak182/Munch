@@ -22,6 +22,24 @@ window.MUNCH_CONFIG = {
   googleMapsApiKey: 'AIzaSyAgzQbVlTCiPP0zL-Y_NPdKj3yOmNNYjqc',
 
   /**
+   * Show photos on venue cards.
+   *
+   * Photos are billed per image fetched, separately from the search itself,
+   * so this is the most expensive part of a results screen. Set to false to
+   * turn them off entirely.
+   */
+  showPhotos: true,
+
+  /**
+   * How many cards may show a photo, counted from the top of the list.
+   *
+   * A fully scrolled list of 20 venues would be 20 billed photo requests.
+   * Capping the top few keeps the visual hook on the results you actually
+   * look at. Raise it for a richer list, lower it (or 0) to spend less.
+   */
+  photoLimit: 3,
+
+  /**
    * Optional Map ID, used for cloud-based map styling. Leave empty to use
    * Google's demo style. Create one under Google Maps Platform → Map
    * Management to restyle the map without touching code.

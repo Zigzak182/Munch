@@ -92,6 +92,8 @@ export function normalizeElement(element) {
     website: tags.website ?? tags['contact:website'] ?? '',
     phone: tags.phone ?? tags['contact:phone'] ?? '',
     mapsUrl: '',
+    photoUrl: '',
+    photoAttribution: null,
     openNow: null,
     hoursText: tags.opening_hours ?? '',
     takeaway: tags.takeaway === 'yes',

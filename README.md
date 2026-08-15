@@ -1,8 +1,8 @@
 # Munch
 
 **Hunger diagnostics.** Two questions — how it should *feel* and what it should
-*taste* of — then Munch decides the cuisine for you, names the dish you're
-actually craving, and maps the closest places that serve it.
+*taste* of — then Munch decides the cuisine for you and maps the closest places
+that fit.
 
 ```
 Crunchy · Soft · Saucy · Crispy      →  what it feels like
@@ -68,6 +68,22 @@ the **Enterprise** SKU — the most expensive tier. Trim `FIELDS` in
 `src/providers/google.js` from the bottom up to drop into the cheaper Pro tier
 if a free allowance is the priority.
 
+**Photos are billed separately, per image fetched**, which makes them the most
+expensive part of a results screen: a fully scrolled list of 20 venues would be
+20 requests on top of the one search. Three brakes, all in `munch.config.js`:
+
+| setting | effect |
+| --- | --- |
+| `photoLimit: 3` (default) | only the top three cards can show a photo |
+| lazy loading (always on) | off-screen cards cost nothing until scrolled to |
+| `showPhotos: false` | no photos at all, no photo requests |
+
+The limit follows display order, so re-sorting moves the photos to whatever is
+now on top. Counting the billable units per search — one Nearby Search, up to
+`photoLimit` photo fetches, one map load, and a geocode only if a place name
+was typed — against Google's current pricing is the way to estimate a bill;
+set a budget alert either way.
+
 ## How it works
 
 1. **Quiz** — two single-choice screens. Answers are held in memory and
@@ -80,21 +96,32 @@ if a free allowance is the priority.
 3. **Diagnosis** — dishes within that cuisine are scored on texture and
    flavour, each paying a bonus when the answer matches the dish's *defining*
    trait — the first tag in its list. Gyoza is soft before it is crispy, so a
-   craving for crispy reaches tonkatsu first. The top three are shown, with
-   the runner-up cuisines offered below as an override.
+   craving for crispy reaches tonkatsu first.
+
+   Those dishes are **never displayed**. Printing a dish name above a list of
+   venues implies those venues serve it, and no available API can confirm what
+   is on a restaurant's current menu — Google Places has no menu field, and the
+   only live sources are per-merchant POS or partner-only delivery APIs. So the
+   screen shows the craving profile, and venue cards link out to the business
+   for the real menu. The dishes stay internal, choosing the cuisine and
+   sharpening the search terms.
 4. **Reveal** — a full-screen moment (~4.7s) shuffles the cuisines, decelerating
    into the chosen one like a wheel coming to rest, then bursts. Since the app
    decides for you, the decision has to be seen being made, or it reads as a
-   label that was always there. Tap or press any key to skip, and it collapses
-   to ~650ms with no confetti under `prefers-reduced-motion`.
+   label that was always there. It lands on the cuisine alone — no dish, for
+   the reason above. Tap or press any key to skip, and it collapses to ~650ms
+   with no confetti under `prefers-reduced-motion`.
 5. **Location** — requested automatically once the reveal ends, via the
    browser's Geolocation API; Nominatim handles typed place names.
 6. **Venues** — one Places Nearby Search within 5 km, filtered server-side by
    the cuisine's `includedPrimaryTypes` and ranked by distance, widening to
    15 km only when it finds nothing at all. The OpenStreetMap fallback runs
    the equivalent Overpass query when no key is configured.
-7. **Results** — ranked by match quality first, distance second, and shown as
-   either a map or a sortable list. Every venue links out to directions.
+7. **Results** — each card carries a credited photo under the name, ranked by
+   match quality first and distance second, with the map and the sortable list
+   on screen together: stacked on a phone, side by side
+   from 860px with the map sticky as the list scrolls past. Every venue links
+   out to directions, its website and its Google listing.
 
 ## Data sources
 
@@ -134,7 +161,8 @@ the failure is shown on the results screen and the list carries on.
 
 ## Adding to the catalogue
 
-Dishes live in `src/data.js`. Each one declares every texture and flavour it
+Dishes live in `src/data.js`. They are scoring data, not display copy — no
+dish name reaches the screen. Each declares every texture and flavour it
 honestly satisfies, plus `terms` used to match venue names:
 
 ```js
