@@ -180,16 +180,36 @@ a { color: var(--accent); }
 
 .options {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
   margin-top: 6px;
+}
+
+/* Two across on a phone so all four choices land above the fold. Stated
+   outright rather than left to auto-fit, which drops to one column on the
+   narrowest handsets — exactly where the scrolling hurt most. */
+@media (max-width: 560px) {
+  .options { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .option { padding: 14px 12px; }
+  .option__blurb { font-size: 12.5px; }
+}
+
+/* Short screens — small or older handsets — need more than two columns to
+   clear the fold, so the descriptions go. The four labels carry the meaning
+   on their own; the descriptions are flavour, and flavour is what you drop. */
+@media (max-height: 700px) {
+  .app { gap: 14px; }
+  .brand__tagline { display: none; }
+  .screen__sub { display: none; }
+  .option__blurb { display: none; }
+  .option { padding: 13px 12px; }
 }
 
 .option {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 20px 18px;
+  padding: 16px 14px;
   text-align: left;
   background: var(--bg-raised);
   border: 1px solid var(--border);
@@ -207,9 +227,9 @@ a { color: var(--accent); }
   background: var(--accent-soft);
 }
 
-.option__emoji { font-size: 30px; line-height: 1; }
-.option__label { font-size: 18px; font-weight: 650; letter-spacing: -0.01em; }
-.option__blurb { font-size: 13.5px; color: var(--text-muted); }
+.option__emoji { font-size: 28px; line-height: 1; }
+.option__label { font-size: 17px; font-weight: 650; letter-spacing: -0.01em; }
+.option__blurb { font-size: 13px; color: var(--text-muted); }
 
 /* --------------------------------------------------------------- controls */
 
