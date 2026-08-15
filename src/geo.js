@@ -39,6 +39,33 @@ export function walkingMinutes(meters) {
   return Math.max(1, Math.round(meters / 80));
 }
 
+/** Rough driving time through town, at 500 m/min — about 30 km/h with lights. */
+export function drivingMinutes(meters) {
+  return Math.max(1, Math.round(meters / 500));
+}
+
+/**
+ * Past this, quoting a walking time is useless information dressed up as
+ * help — 25 minutes on foot is not how anyone reaches dinner 3 km away.
+ */
+export const WALKABLE_METERS = 2000;
+
+/**
+ * How long it takes to get there, and by what.
+ *
+ * The mode switches with distance rather than being assumed, so a venue
+ * across town reads as a drive instead of an implausible hike.
+ *
+ * @returns {{mode: 'walk'|'drive', minutes: number, label: string}}
+ */
+export function travelTime(meters) {
+  if (!Number.isFinite(meters)) return { mode: 'walk', minutes: 1, label: '' };
+
+  const mode = meters <= WALKABLE_METERS ? 'walk' : 'drive';
+  const minutes = mode === 'walk' ? walkingMinutes(meters) : drivingMinutes(meters);
+  return { mode, minutes, label: `~${minutes} min ${mode}` };
+}
+
 /**
  * A latitude/longitude box that comfortably contains `radiusMeters` around
  * `center`. Used to clamp results when a provider ignores the radius.

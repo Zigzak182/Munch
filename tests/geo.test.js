@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  LocationError, boundingBox, currentPosition, distanceMeters, formatDistance, walkingMinutes,
+  LocationError, WALKABLE_METERS, boundingBox, currentPosition, distanceMeters,
+  drivingMinutes, formatDistance, travelTime, walkingMinutes,
 } from '../src/geo.js';
 
 /** Install a fake Geolocation API for one test. */
@@ -52,6 +53,25 @@ test('formatDistance supports imperial output', () => {
 test('walking time is never below a minute', () => {
   assert.equal(walkingMinutes(10), 1);
   assert.equal(walkingMinutes(800), 10);
+});
+
+test('driving time is never below a minute', () => {
+  assert.equal(drivingMinutes(50), 1);
+  assert.equal(drivingMinutes(5000), 10);
+});
+
+test('travel switches from walking to driving once a walk stops being plausible', () => {
+  // Quoting "~40 min walk" for somewhere 3km away is not help.
+  assert.equal(travelTime(400).mode, 'walk');
+  assert.equal(travelTime(WALKABLE_METERS).mode, 'walk');
+  assert.equal(travelTime(WALKABLE_METERS + 1).mode, 'drive');
+  assert.equal(travelTime(9000).mode, 'drive');
+});
+
+test('the travel label names the mode it used', () => {
+  assert.equal(travelTime(400).label, '~5 min walk');
+  assert.equal(travelTime(6000).label, '~12 min drive');
+  assert.equal(travelTime(Number.NaN).label, '');
 });
 
 test('currentPosition resolves with flattened coordinates', async () => {
