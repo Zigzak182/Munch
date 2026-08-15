@@ -7,6 +7,9 @@
 
 const DEMO_MAP_ID = 'DEMO_MAP_ID';
 
+/** Photos on the first few cards only — see `photoLimit`. */
+const DEFAULT_PHOTO_LIMIT = 3;
+
 const config = () => (typeof window === 'undefined' ? {} : window.MUNCH_CONFIG ?? {});
 
 /** The Google Maps Platform key, or '' when the app should run without it. */
@@ -35,3 +38,24 @@ export function mapId() {
  * is the one knob most likely to be turned off on a busy deployment.
  */
 export const showPhotos = () => config().showPhotos !== false;
+
+/**
+ * How many cards may show a photo, counted down the list as displayed.
+ *
+ * Photos are billed per image fetched, and a fully scrolled list of twenty is
+ * twenty requests — several times the cost of the search itself. Capping the
+ * top few keeps the visual hook where it matters, on the results you actually
+ * look at, and leaves the tail as text.
+ *
+ * `showPhotos: false` wins over any limit; a limit of 0 has the same effect.
+ */
+export function photoLimit() {
+  if (!showPhotos()) return 0;
+
+  const value = config().photoLimit;
+  if (value === undefined || value === null) return DEFAULT_PHOTO_LIMIT;
+
+  const limit = Number(value);
+  if (!Number.isFinite(limit) || limit < 0) return DEFAULT_PHOTO_LIMIT;
+  return Math.floor(limit);
+}

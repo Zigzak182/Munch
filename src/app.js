@@ -12,6 +12,7 @@ import { CUISINES, FLAVORS, TEXTURES } from './data.js';
 import { diagnose } from './diagnosis.js';
 import { LocationError, currentPosition, formatDistance, walkingMinutes } from './geo.js';
 import { PlacesError, activeProvider, findNearbyPlaces, geocode } from './places.js';
+import { photoLimit } from './config.js';
 import { playReveal } from './reveal.js';
 import * as mapView from './map.js';
 
@@ -179,13 +180,14 @@ function badges(place) {
 /**
  * Venue photo, credited.
  *
- * `loading="lazy"` is not just a performance nicety here — Google bills each
- * photo fetch, so cards below the fold cost nothing until they are scrolled
- * to. The fixed aspect ratio reserves the space so the list does not jump as
- * images arrive.
+ * Only the first `limit` cards get one: Google bills each photo fetched, and a
+ * fully scrolled list of twenty would be twenty requests. `loading="lazy"` is
+ * a second brake on the same cost, keeping off-screen cards free until they
+ * are reached. The fixed aspect ratio reserves the space so the list does not
+ * jump as images arrive.
  */
-function photoHtml(place) {
-  if (!place.photoUrl) return '';
+function photoHtml(place, index, limit) {
+  if (index >= limit || !place.photoUrl) return '';
 
   const credit = place.photoAttribution;
   const creditHtml = credit
@@ -229,7 +231,11 @@ function renderList() {
   const list = $('place-list');
   list.innerHTML = '';
 
-  sortPlaces(state.places).forEach((place) => {
+  // Read once per render: the cap follows display order, so re-sorting moves
+  // the photos to whichever cards are now on top.
+  const limit = photoLimit();
+
+  sortPlaces(state.places).forEach((place, index) => {
     const item = document.createElement('li');
     item.className = 'place';
     item.innerHTML = `
@@ -237,7 +243,7 @@ function renderList() {
         <h3 class="place__name">${escapeHtml(place.name)}</h3>
         <span class="place__distance">${formatDistance(place.distance)}</span>
       </div>
-      ${photoHtml(place)}
+      ${photoHtml(place, index, limit)}
       <p class="place__meta">
         <span class="place__type">${escapeHtml(place.typeLabel)}</span>
         · ~${walkingMinutes(place.distance)} min walk

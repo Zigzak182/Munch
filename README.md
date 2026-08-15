@@ -68,10 +68,21 @@ the **Enterprise** SKU — the most expensive tier. Trim `FIELDS` in
 `src/providers/google.js` from the bottom up to drop into the cheaper Pro tier
 if a free allowance is the priority.
 
-**Photos are billed separately, per image fetched** — a list of 20 venues is up
-to 20 photo requests on top of the search. Cards load them lazily, so images
-below the fold cost nothing until scrolled to, and `showPhotos: false` in
-`munch.config.js` turns them off entirely.
+**Photos are billed separately, per image fetched**, which makes them the most
+expensive part of a results screen: a fully scrolled list of 20 venues would be
+20 requests on top of the one search. Three brakes, all in `munch.config.js`:
+
+| setting | effect |
+| --- | --- |
+| `photoLimit: 3` (default) | only the top three cards can show a photo |
+| lazy loading (always on) | off-screen cards cost nothing until scrolled to |
+| `showPhotos: false` | no photos at all, no photo requests |
+
+The limit follows display order, so re-sorting moves the photos to whatever is
+now on top. Counting the billable units per search — one Nearby Search, up to
+`photoLimit` photo fetches, one map load, and a geocode only if a place name
+was typed — against Google's current pricing is the way to estimate a bill;
+set a budget alert either way.
 
 ## How it works
 
