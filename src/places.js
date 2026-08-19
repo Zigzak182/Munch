@@ -11,8 +11,9 @@
  * for why that matters more than it looks.
  */
 
-import { cacheMinutes, hasGoogle, providerPreference } from './config.js';
+import { cacheMinutes, hasApi, hasGoogle, providerPreference } from './config.js';
 import { cacheKey, coarse, read, write } from './cache.js';
+import * as api from './providers/api.js';
 import * as google from './providers/google.js';
 import * as osm from './providers/osm.js';
 
@@ -26,11 +27,16 @@ export { clear as clearCache, stats as cacheStats } from './cache.js';
  * `google` still needs a key, and falls back rather than failing every search.
  */
 export function activeProvider() {
+  // The backend wins when configured: it is the only path where the Places
+  // key is not in the page and the Munch+ gate is actually enforced.
+  if (hasApi() && providerPreference() !== 'osm') return 'api';
   if (providerPreference() === 'osm' || !hasGoogle()) return 'osm';
   return 'google';
 }
 
-const providerFor = () => (activeProvider() === 'google' ? google : osm);
+const PROVIDERS = { api, google, osm };
+
+const providerFor = () => PROVIDERS[activeProvider()];
 
 const ttlMs = () => cacheMinutes() * 60 * 1000;
 
@@ -46,7 +52,7 @@ const ttlMs = () => cacheMinutes() * 60 * 1000;
  * @returns {Promise<{places: object[], radius: number}>}
  */
 export async function findNearbyPlaces(origin, options = {}) {
-  const { googleTypes, cuisineTags, nameTerms, amenities, shops } = options;
+  const { googleTypes, cuisineTags, nameTerms, amenities, shops, course, cuisine } = options;
   const ttl = ttlMs();
 
   // Note what is *absent* from the key: the AbortSignal, which changes on
@@ -59,6 +65,10 @@ export async function findNearbyPlaces(origin, options = {}) {
     nameTerms,
     amenities,
     shops,
+    // The backend takes these instead of types, so they must key the cache
+    // too or a dessert search would be served a main-course result.
+    course,
+    cuisine,
   });
 
   if (ttl > 0) {

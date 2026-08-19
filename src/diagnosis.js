@@ -214,6 +214,13 @@ export function diagnose(answers) {
       cuisineTags: course.osmCuisines ?? cuisine.osmCuisines,
       amenities: course.osmAmenities ?? undefined,
       shops: course.osmShops ?? [],
+      /*
+       * The backend takes these two instead of the type lists above, and
+       * derives the types itself — which is what stops a client asking for
+       * dessert venues it has not paid for.
+       */
+      course: courseId,
+      cuisine: cuisine.id,
     },
     /** True when the cuisine was derived rather than pinned by the user. */
     derived: !pinned,

@@ -238,6 +238,26 @@ A bakery is mapped in OpenStreetMap as `shop=bakery`, usually with no
 `amenity` and no `cuisine` tag, which is why the fallback provider had to grow
 a shop clause; matching on amenity alone returned almost no bakeries at all.
 
+## The backend
+
+There is an optional backend in [`server/`](server/README.md). Without it the
+app works exactly as before: the browser talks to Google directly. With it,
+two things change that cannot be done from a static page.
+
+**The Places key stops being public.** A key in `munch.config.js` ships to
+every visitor and can be scraped and spent. Behind the proxy it lives in the
+worker's secrets. The Maps *JavaScript* key stays public — a basemap cannot be
+drawn without one — so the two are split, and only the cheap one is exposed.
+
+**Munch+ becomes enforceable.** The dessert gate cannot hold in client-side
+JavaScript, where it is one devtools toggle from being off. The mechanism is
+narrower than a check: the client sends a *course* and a *cuisine*, never
+venue types, and the server derives the types itself from this same
+`src/data.js`. There is no field in which to ask for dessert venues.
+
+Set `apiBase` in `munch.config.js` to switch the app onto it. The provider is
+picked in `src/places.js`, and `app.js` never learns which one answered.
+
 ## Data sources
 
 Venues, geocoding and the map come from **Google Maps Platform** (Places API
@@ -267,7 +287,8 @@ src/suggest.js        reads the venues found for a likely dish
 src/google.js         loads the Maps JS SDK once, and reports auth failures
 src/places.js         picks a provider
 src/places-shared.js  the shared place shape, ranking and errors
-src/providers/        google.js (primary) and osm.js (keyless fallback)
+src/providers/        api.js (backend), google.js (direct), osm.js (keyless)
+server/               the optional backend: key custody and the Munch+ gate
 src/map.js            Google Maps wrapper; no-ops without a key
 src/app.js            screen flow and DOM wiring
 tests/                node:test unit tests
