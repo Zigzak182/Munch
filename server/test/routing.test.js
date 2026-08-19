@@ -303,3 +303,39 @@ test('preflight and unknown routes behave', async () => {
   const missing = await worker.fetch(post('/v1/nope', {}), ENV);
   assert.equal(missing.status, 404);
 });
+
+test('a dessert search needs no cuisine, a main-course one does', async () => {
+  // Dessert is a course, not a kitchen: it brings its own venue types. Every
+  // other course takes them from the cuisine, so a missing one there would
+  // quietly search every restaurant in range.
+  const calls = stubGoogle();
+
+  const dessert = await worker.fetch(
+    post('/v1/places', { lat: 51.5074, lon: -0.1278, course: 'dessert' },
+      { token: await tokenFor('plus') }),
+    ENV,
+  );
+  assert.equal(dessert.status, 200);
+  assert.ok(JSON.parse(calls[0].init.body).includedPrimaryTypes.includes('bakery'));
+
+  const main = await worker.fetch(
+    post('/v1/places', { lat: 51.5074, lon: -0.1278, course: 'main' },
+      { token: await tokenFor('plus') }),
+    ENV,
+  );
+  assert.equal(main.status, 400);
+  assert.equal((await main.json()).message, 'Unknown cuisine.');
+});
+
+test('a free session still cannot reach desserts without a cuisine', async () => {
+  // The cuisine being optional must not have opened a way around the gate.
+  const calls = stubGoogle();
+  const response = await worker.fetch(
+    post('/v1/places', { lat: 51.5074, lon: -0.1278, course: 'dessert' },
+      { token: await tokenFor('free') }),
+    ENV,
+  );
+
+  assert.equal(response.status, 402);
+  assert.equal(calls.length, 0);
+});

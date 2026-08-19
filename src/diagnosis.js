@@ -175,10 +175,19 @@ export function rankCuisines(answers, { dishes = DISHES } = {}) {
 /**
  * Build the full diagnosis object consumed by the results screen.
  *
- * The cuisine is derived from the two answers. `answers.cuisine` is honoured
- * when set — that is how the "try another" control and older three-part share
- * links pin a specific cuisine — and `alternatives` carries the rest of the
- * ranking so the UI can offer the runner-up when nothing is nearby.
+ * For a main course the cuisine is derived from the two answers.
+ * `answers.cuisine` is honoured when set — that is how the "try another"
+ * control and older three-part share links pin one — and `alternatives`
+ * carries the rest of the ranking so the UI can offer the runner-up.
+ *
+ * **Dessert has no cuisine at all**, and that is deliberate rather than a
+ * gap. Dessert is a course, not a kind of kitchen: nobody craving something
+ * crispy and sweet wants to be told "Mexican" first. Deriving one anyway
+ * would also narrow the search to that cuisine's version — always churros,
+ * never the loukoumades from the Greek bakery across the road — when the
+ * whole dessert catalogue is the better field to pick from. The venues come
+ * from the course's own types either way, so nothing is lost by leaving it
+ * out.
  *
  * @param {{texture: string, flavor: string, cuisine?: string}} answers
  */
@@ -186,18 +195,32 @@ export function diagnose(answers) {
   const texture = findOption(TEXTURES, answers.texture);
   const flavor = findOption(FLAVORS, answers.flavor);
 
-  const ranking = rankCuisines(answers);
-  const pinned = ranking.find((entry) => entry.cuisine.id === answers.cuisine);
-  const chosen = pinned ?? ranking[0];
-  const cuisine = chosen.cuisine;
-
-  const matches = rankDishes({ ...answers, cuisine: cuisine.id });
-  const headline = [texture?.label, flavor?.label, cuisine.label]
-    .filter(Boolean)
-    .join(' · ');
-
   const courseId = courseFor(answers.flavor);
   const course = COURSES[courseId];
+  const cuisineless = courseId === 'dessert';
+
+  // A pinned cuisine is ignored on the dessert path, including one arriving
+  // in a shared link, so `#crispy/sweet/mexican` cannot reintroduce it.
+  const ranking = cuisineless ? [] : rankCuisines(answers);
+  const pinned = ranking.find((entry) => entry.cuisine.id === answers.cuisine);
+  const cuisine = cuisineless ? null : (pinned ?? ranking[0]).cuisine;
+
+  /*
+   * What the dish ranking sees.
+   *
+   * The cuisine is *removed* rather than merely unset on the dessert path:
+   * `rankDishes` honours whatever `answers.cuisine` holds, so leaving a
+   * pinned one in place would quietly narrow the ranking to that kitchen
+   * while `diagnose` reported no cuisine at all.
+   */
+  const rankingAnswers = cuisineless
+    ? { texture: answers.texture, flavor: answers.flavor }
+    : { ...answers, cuisine: cuisine.id };
+
+  const matches = rankDishes(rankingAnswers);
+  const headline = [texture?.label, flavor?.label, cuisine?.label]
+    .filter(Boolean)
+    .join(' · ');
 
   return {
     texture,
@@ -215,12 +238,13 @@ export function diagnose(answers) {
       amenities: course.osmAmenities ?? undefined,
       shops: course.osmShops ?? [],
       /*
-       * The backend takes these two instead of the type lists above, and
-       * derives the types itself — which is what stops a client asking for
-       * dessert venues it has not paid for.
+       * The backend takes these instead of the type lists above, and derives
+       * the types itself — which is what stops a client asking for dessert
+       * venues it has not paid for. On the dessert path there is no cuisine
+       * to send, and the backend does not need one.
        */
       course: courseId,
-      cuisine: cuisine.id,
+      ...(cuisine ? { cuisine: cuisine.id } : {}),
     },
     /** True when the cuisine was derived rather than pinned by the user. */
     derived: !pinned,
@@ -237,7 +261,7 @@ export function diagnose(answers) {
      * A wider slice of the same ranking, for suggest.js to test against the
      * venues that actually came back. Also never rendered on its own.
      */
-    candidates: rankDishes({ ...answers, cuisine: cuisine.id }, { limit: CANDIDATE_DEPTH }),
-    terms: searchTerms({ ...answers, cuisine: cuisine.id }, matches),
+    candidates: rankDishes(rankingAnswers, { limit: CANDIDATE_DEPTH }),
+    terms: searchTerms(rankingAnswers, matches),
   };
 }

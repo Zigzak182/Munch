@@ -82,10 +82,13 @@ test('rankCuisines returns every cuisine, best first, with dishes attached', () 
   assert.deepEqual(scores, [...scores].sort((a, b) => b - a));
 });
 
-test('the derived cuisine is decisive for every pair, and every cuisine is reachable', () => {
+/** Dessert has no cuisine, so cuisine-derivation only applies to the rest. */
+const MAIN_PAIRS = PAIRS.filter((pair) => pair.flavor !== SWEET);
+
+test('the derived cuisine is decisive for every main pair, and every cuisine is reachable', () => {
   const picked = new Set();
 
-  for (const pair of PAIRS) {
+  for (const pair of MAIN_PAIRS) {
     const result = diagnose(pair);
     assert.ok(result.cuisine, `no cuisine derived for ${pair.texture}/${pair.flavor}`);
     assert.equal(result.derived, true);
@@ -137,11 +140,18 @@ test('diagnose returns a headline, verdict and matches for every combination', (
     for (const flavor of FLAVORS) {
       const result = diagnose({ texture: texture.id, flavor: flavor.id, cuisine: 'mexican' });
 
-      assert.equal(result.headline, `${texture.label} · ${flavor.label} · Mexican`);
       assert.ok(result.verdict.length > 0);
       assert.ok(result.matches.length > 0);
       assert.ok(result.terms.length > 0);
-      assert.equal(result.cuisine.id, 'mexican');
+
+      if (flavor.id === SWEET) {
+        // The pinned cuisine is ignored, and the headline says so by omission.
+        assert.equal(result.headline, `${texture.label} · ${flavor.label}`);
+        assert.equal(result.cuisine, null);
+      } else {
+        assert.equal(result.headline, `${texture.label} · ${flavor.label} · Mexican`);
+        assert.equal(result.cuisine.id, 'mexican');
+      }
     }
   }
 });
@@ -221,18 +231,44 @@ test('the dessert catalogue is level across cuisines and covers every texture', 
   }
 });
 
-test('each sweet pair lands on a distinct cuisine, decisively', () => {
-  // Four textures against one flavour is the whole dessert matrix, so a tie
-  // here would show up as the same cuisine every time someone wants pudding.
-  const picked = SWEET_PAIRS.map((pair) => diagnose(pair).cuisine.id);
-  assert.equal(new Set(picked).size, SWEET_PAIRS.length, `collapsed to ${picked.join(', ')}`);
-
+test('dessert is a course, not a cuisine — so it never names one', () => {
   for (const pair of SWEET_PAIRS) {
-    const [winner, runnerUp] = rankCuisines(pair);
-    assert.ok(
-      winner.score > runnerUp.score,
-      `${pair.texture}/sweet ties at ${winner.score} — the result rests on a tie-break`,
-    );
+    const result = diagnose(pair);
+
+    assert.equal(result.cuisine, null, `${pair.texture}/sweet named a cuisine`);
+    assert.deepEqual(result.alternatives, [], 'there is no cuisine to offer alternatives to');
+    assert.equal(result.headline, `${result.texture.label} · Sweet`);
+    assert.equal(result.search.cuisine, undefined, 'no cuisine is sent to the backend');
+    assert.ok(result.search.googleTypes.includes('bakery'), 'the course supplies its own types');
+  }
+});
+
+test('a cuisine pinned in a shared link is ignored on the dessert path', () => {
+  // `#crispy/sweet/mexican` must not reintroduce what the course removed.
+  const pinned = diagnose({ texture: 'crispy', flavor: SWEET, cuisine: 'mexican' });
+  const plain = diagnose({ texture: 'crispy', flavor: SWEET });
+
+  assert.equal(pinned.cuisine, null);
+  assert.equal(pinned.headline, plain.headline);
+  assert.deepEqual(pinned.candidates.map((dish) => dish.id), plain.candidates.map((dish) => dish.id));
+});
+
+test('dessert candidates are drawn from the whole catalogue, not one kitchen', () => {
+  // The reason for dropping the cuisine: crispy and sweet should be able to
+  // reach the Greek bakery's loukoumades, not only the Mexican churros.
+  for (const pair of SWEET_PAIRS) {
+    const cuisines = new Set(diagnose(pair).candidates.map((dish) => dish.cuisine));
+    assert.ok(cuisines.size > 1,
+      `${pair.texture}/sweet only considered ${[...cuisines].join(', ')}`);
+  }
+});
+
+test('every dessert candidate still matches the texture that was asked for', () => {
+  // Widening the field must not turn it into "any dessert at all".
+  for (const pair of SWEET_PAIRS) {
+    const top = diagnose(pair).candidates[0];
+    assert.ok(top.textures.includes(pair.texture),
+      `${top.name} does not satisfy ${pair.texture}`);
   }
 });
 

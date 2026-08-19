@@ -45,6 +45,9 @@ const cuisineById = (id) => CUISINES.find((entry) => entry.id === id) ?? null;
  *
  * The client has no say in this. It is the same derivation the browser does,
  * but doing it here is what makes the paywall real.
+ *
+ * Dessert carries its own types and needs no cuisine — it is a course, not a
+ * kind of kitchen — so `cuisine` is null on that path.
  */
 function typesFor(course, cuisine) {
   const courseConfig = COURSES[course];
@@ -356,13 +359,18 @@ async function postPlaces(request, config, store, headers) {
   const lon = requireNumber(body.lon, 'lon', { min: -180, max: 180 });
 
   const course = String(body.course ?? 'main');
-  const cuisine = cuisineById(String(body.cuisine ?? ''));
-  if (!cuisine) throw new HttpError(400, 'bad_request', 'Unknown cuisine.');
 
   // Validity before entitlement: a course that does not exist is a bad
   // request, and answering "upgrade required" would imply that paying would
   // make it work.
   if (!COURSES[course]) throw new HttpError(400, 'bad_request', 'Unknown course.');
+
+  // Dessert has no cuisine — it is a course, not a kitchen — and supplies its
+  // own venue types. Every other course needs one, since the types come from
+  // it and a missing one would silently search every restaurant nearby.
+  const needsCuisine = !COURSES[course].googleTypes;
+  const cuisine = cuisineById(String(body.cuisine ?? ''));
+  if (needsCuisine && !cuisine) throw new HttpError(400, 'bad_request', 'Unknown cuisine.');
 
   // The paywall.
   if (!allowsCourse(claims.tier, course)) {

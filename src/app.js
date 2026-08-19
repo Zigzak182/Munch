@@ -9,7 +9,7 @@
  */
 
 import { CUISINES, FLAVORS, TEXTURES } from './data.js';
-import { diagnose } from './diagnosis.js';
+import { courseFor, diagnose } from './diagnosis.js';
 import { LocationError, currentPosition, formatDistance, travelTime } from './geo.js';
 import { PlacesError, activeProvider, findNearbyPlaces, geocode } from './places.js';
 import { describeSuggestion, suggestDish } from './suggest.js';
@@ -195,6 +195,13 @@ function renderSwap(result) {
   const options = $('swap-options');
   options.innerHTML = '';
 
+  // Nothing to swap on the dessert path: there is no cuisine to be unhappy
+  // with, which is the point of leaving it out.
+  if (!result.cuisine) {
+    swap.hidden = true;
+    return;
+  }
+
   $('swap-label').textContent = result.derived
     ? `Not feeling ${result.cuisine.label}?`
     : 'Or try:';
@@ -219,9 +226,12 @@ function renderSwap(result) {
 const directionsUrl = (place) =>
   `https://www.google.com/maps/dir/?api=1&destination=${place.lat}%2C${place.lon}`;
 
-function badges(place) {
+function badges(place, { course = 'main' } = {}) {
   const marks = [];
-  if (place.cuisineMatch) marks.push('<span class="badge badge--match">cuisine match</span>');
+  // The badge means "this venue is the kind we searched for", which is a
+  // cuisine on the main path and simply a dessert place on the sweet one.
+  const matchLabel = course === 'dessert' ? 'dessert spot' : 'cuisine match';
+  if (place.cuisineMatch) marks.push(`<span class="badge badge--match">${matchLabel}</span>`);
   else if (place.nameMatch) marks.push('<span class="badge">likely match</span>');
   if (place.openNow === true) marks.push('<span class="badge badge--open">open now</span>');
   if (place.openNow === false) marks.push('<span class="badge badge--shut">closed</span>');
@@ -308,6 +318,7 @@ function renderList() {
   // Read once per render: the cap follows display order, so re-sorting moves
   // the photos to whichever cards are now on top.
   const limit = photoLimit();
+  const { course } = diagnose(state);
 
   sortPlaces(state.places).forEach((place, index) => {
     const item = document.createElement('li');
@@ -325,7 +336,7 @@ function renderList() {
       ${ratingHtml(place)}
       ${place.address ? `<p class="place__meta">${escapeHtml(place.address)}</p>` : ''}
       ${place.hoursText ? `<p class="place__hours">${escapeHtml(place.hoursText)}</p>` : ''}
-      <div class="place__badges">${badges(place)}</div>
+      <div class="place__badges">${badges(place, { course })}</div>
       <div class="place__links">
         <a href="${directionsUrl(place)}" target="_blank" rel="noreferrer">Directions</a>
         ${place.website ? `<a href="${escapeHtml(place.website)}" target="_blank" rel="noreferrer">Website</a>` : ''}
@@ -346,14 +357,16 @@ function renderResults() {
     return;
   }
 
-  renderSuggestion(diagnose(state));
+  const result = diagnose(state);
+  renderSuggestion(result);
 
   // Report how far the results actually reach, not how far we searched — the
   // radius widens in fixed steps and would overstate the distance.
   const reach = Math.max(...state.places.map((place) => place.distance));
   const matches = state.places.filter((place) => place.tier === 0).length;
+  const matchNoun = result.course === 'dessert' ? 'dessert spots' : 'on-cuisine';
   $('results-count').textContent = matches > 0
-    ? `${state.places.length} places within ${formatDistance(reach)} · ${matches} on-cuisine`
+    ? `${state.places.length} places within ${formatDistance(reach)} · ${matches} ${matchNoun}`
     : `${state.places.length} places within ${formatDistance(reach)}`;
 
   renderList();
@@ -447,7 +460,7 @@ function syncHash() {
 /**
  * Restore from a shared link. The cuisine segment is optional — links made
  * before the cuisine question was dropped still carry one, and it is honoured
- * as a pin.
+ * as a pin, except on the dessert path where there is no cuisine to pin.
  */
 function restoreFromHash() {
   const [texture, flavor, cuisine] = window.location.hash.replace(/^#/, '').split('/');
@@ -455,7 +468,9 @@ function restoreFromHash() {
     && FLAVORS.some((option) => option.id === flavor);
   if (!valid) return false;
 
-  const pinned = CUISINES.some((option) => option.id === cuisine) ? cuisine : null;
+  const pinned = courseFor(flavor) === 'main' && CUISINES.some((option) => option.id === cuisine)
+    ? cuisine
+    : null;
   Object.assign(state, { texture, flavor, cuisine: pinned });
   STEPS.slice(0, RESULTS).forEach(renderOptions);
   goTo(RESULTS);
@@ -473,7 +488,9 @@ async function search(origin, label) {
   state.originLabel = label;
   const { terms, cuisine, course, search: venueHints } = diagnose(state);
 
-  const noun = course === 'dessert' ? `${cuisine.label} dessert` : cuisine.label;
+  // Dessert is its own course, not a cuisine's dessert menu, so it is named
+  // as one — "dessert places", never "Italian dessert places".
+  const noun = course === 'dessert' ? 'dessert' : cuisine.label;
   setStatus(`Looking for ${noun} places near ${label}…`, 'busy');
   $('results').hidden = true;
 
