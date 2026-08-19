@@ -336,6 +336,120 @@ a { color: var(--accent); }
 }
 
 .option__emoji { font-size: clamp(28px, 4.2vh, 44px); line-height: 1; margin-bottom: 6px; }
+
+/* ------------------------------------------------------------ Munch+ */
+
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/*
+ * The rainbow rim.
+ *
+ * Two backgrounds on one element rather than a pseudo-element: the card
+ * surface clipped to the padding box, the gradient clipped to the border box.
+ * A pseudo behind the card would be trapped the moment the card lifts on
+ * hover, since a transform makes it a stacking context and a z-index:-1 child
+ * can no longer sit behind its parent's own background.
+ *
+ * The angle animates through a registered custom property. Where @property is
+ * unsupported the angle simply stays put and the rim is a static rainbow,
+ * which is a fine place to land.
+ */
+@property --munch-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.option--premium {
+  position: relative;
+  overflow: hidden;
+  border-color: transparent;
+  border-width: 2px;
+  background:
+    linear-gradient(var(--bg-raised), var(--bg-raised)) padding-box,
+    conic-gradient(
+      from var(--munch-angle),
+      #ff5f6d, #ffc371, #f9f871, #47e0a0, #4facfe, #b06ab3, #ff5f6d
+    ) border-box;
+  animation: munch-spin 7s linear infinite;
+}
+
+.option--premium[aria-checked="true"] {
+  background:
+    linear-gradient(var(--accent-soft), var(--accent-soft)) padding-box,
+    conic-gradient(
+      from var(--munch-angle),
+      #ff5f6d, #ffc371, #f9f871, #47e0a0, #4facfe, #b06ab3, #ff5f6d
+    ) border-box;
+}
+
+@keyframes munch-spin {
+  to { --munch-angle: 360deg; }
+}
+
+/* The shimmer sweep. Transform-only, so it composites rather than repaints. */
+.option--premium::after {
+  content: "";
+  position: absolute;
+  top: -60%;
+  bottom: -60%;
+  left: -40%;
+  width: 28%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  transform: rotate(18deg) translateX(0);
+  animation: munch-shimmer 3.6s ease-in-out infinite;
+  opacity: 0.5;
+}
+
+@keyframes munch-shimmer {
+  0%, 65% { transform: rotate(18deg) translateX(-120%); }
+  100% { transform: rotate(18deg) translateX(520%); }
+}
+
+/* The badge sits in the corner rather than in the text flow, so it does not
+   push the label around or cost the card a line of height. */
+.premium {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.option--premium .premium {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 12px;
+  padding: 4px 7px 4px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+}
+
+.premium__plus { width: 0.9em; height: 0.9em; display: block; margin-left: 1px; }
+
+/* Alongside the "Diagnosis" eyebrow on the results screen. */
+.premium--inline {
+  margin-left: 8px;
+  font-size: 11px;
+  vertical-align: baseline;
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: -0.01em;
+}
+
+.premium--inline[hidden] { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* Keep the rainbow, drop the movement. */
+  .option--premium { animation: none; }
+  .option--premium::after { display: none; }
+}
 .option__label { font-size: 17px; font-weight: 650; letter-spacing: -0.01em; }
 .option__blurb { font-size: 13px; color: var(--text-muted); }
 
@@ -711,6 +825,33 @@ a { color: var(--accent); }
 }
 
 .notice[hidden] { display: none; }
+
+/*
+ * The venue-grounded suggestion.
+ *
+ * Styled as a quiet aside rather than a headline: it is a reading of the
+ * results, not a claim about them, and the note under the lead says as much.
+ */
+.suggestion {
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-sunken);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.suggestion[hidden] { display: none; }
+
+.suggestion__lead { font-size: 15.5px; font-weight: 650; letter-spacing: -0.01em; }
+.suggestion__note { font-size: 13px; color: var(--text-muted); }
+
+/* A hunch looks like a hunch. */
+.suggestion[data-confidence="strong"] { border-color: var(--border-strong); }
+.suggestion[data-confidence="strong"] .suggestion__lead { color: var(--accent); }
+.suggestion[data-confidence="possible"] .suggestion__lead { color: var(--text-muted); font-weight: 600; }
 
 .sort {
   display: inline-flex;

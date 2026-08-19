@@ -12,8 +12,9 @@ Cheesy · Spicy · Savory · Fresh · Sweet  →  what it tastes of
                                             and the nearest places serving it
 ```
 
-**Sweet** switches the whole search: bakeries, gelaterias and dessert counters
-instead of restaurants. See [Courses](#courses).
+**Sweet** is the Munch+ answer: it carries a rainbow rim and a candy-striped
+badge, and switches the whole search to bakeries, gelaterias and dessert
+counters instead of restaurants. See [Courses](#courses).
 
 Deciding the cuisine is the point: picking it yourself is the step that stalls
 people. The results screen still lists the runner-up cuisines underneath, so
@@ -148,13 +149,15 @@ estimate a bill; set a budget alert either way.
    trait — the first tag in its list. Gyoza is soft before it is crispy, so a
    craving for crispy reaches tonkatsu first.
 
-   Those dishes are **never displayed**. Printing a dish name above a list of
-   venues implies those venues serve it, and no available API can confirm what
-   is on a restaurant's current menu — Google Places has no menu field, and the
-   only live sources are per-merchant POS or partner-only delivery APIs. So the
-   screen shows the craving profile, and venue cards link out to the business
-   for the real menu. The dishes stay internal, choosing the cuisine and
-   sharpening the search terms.
+   The diagnosis itself **never names a dish**. Printing a dish name above a
+   list of venues implies those venues serve it, and no available API can
+   confirm what is on a restaurant's current menu — Google Places has no menu
+   field, and the only live sources are per-merchant POS or partner-only
+   delivery APIs. So the headline shows the craving profile, and venue cards
+   link out to the business for the real menu.
+
+   There is exactly one exception, and it works the other way round — see
+   [Suggestions](#suggestions).
 4. **Reveal** — a full-screen moment (~4.7s) shuffles the cuisines, decelerating
    into the chosen one like a wheel coming to rest, then bursts. Since the app
    decides for you, the decision has to be seen being made, or it reads as a
@@ -176,6 +179,38 @@ estimate a bill; set a budget alert either way.
    Travel time switches mode with distance: a walk up to 2 km, a drive past
    it. Quoting "~40 min walk" for somewhere across town is not advice anyone
    acts on.
+
+## Suggestions
+
+The results screen can name a dish — the one place in the app that does. It
+earns that by reading the venues rather than talking over them.
+
+Instead of naming a dish and hoping the neighbourhood cooperates, it takes the
+six best-fitting candidates and asks which one the venues that actually came
+back point at. Support is counted per venue, matched against each venue's
+name, primary type and type list.
+
+The wording follows the evidence, and stops entirely when there is none:
+
+| venues pointing that way | screen says |
+| --- | --- |
+| 3+, and at least 30% of results | **Good odds on Tonkatsu** — *3 places below point that way. We can't read menus, so treat it as a hunch worth having.* |
+| 1–2, or a thin share of a long list | **Maybe Tonkatsu** — *Only 1 place below hints at it — a guess rather than a plan. Check the menu before you commit.* |
+| none | nothing at all |
+
+Both thresholds matter: three venues out of four is a pattern, three out of
+forty is noise that happens to clear a counter.
+
+**Cuisine words are not evidence.** The venue list was already filtered by
+cuisine, so "mexican" matching every Mexican restaurant separates nothing —
+every candidate would tie on every search. The cuisine's own id, label and
+`osmCuisines` are excluded, along with words that describe a venue rather than
+food (`restaurant`, `bakery`, `cafe`). What is left — `birria`, `churreria`,
+`katsu`, `panaderia` — is what actually carries information.
+
+No phrasing here states that a venue serves anything, and the copy says why:
+menus are not published anywhere the app can read. A test asserts the wording
+never claims otherwise.
 
 ## Courses
 
@@ -228,6 +263,7 @@ src/geo.js            haversine distance, formatting, geolocation wrapper
 src/reveal.js         the cuisine reveal overlay
 src/config.js         reads the deployment config
 src/cache.js          TTL cache for billed provider responses
+src/suggest.js        reads the venues found for a likely dish
 src/google.js         loads the Maps JS SDK once, and reports auth failures
 src/places.js         picks a provider
 src/places-shared.js  the shared place shape, ranking and errors
