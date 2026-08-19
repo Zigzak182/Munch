@@ -26,7 +26,14 @@ export const FLAVORS = [
   { id: 'spicy', label: 'Spicy', emoji: '🌶️', blurb: 'Heat, chilli, a little sweat' },
   { id: 'savory', label: 'Savory', emoji: '🍖', blurb: 'Umami, salty, deeply brown' },
   { id: 'fresh', label: 'Fresh', emoji: '🥗', blurb: 'Bright, herby, citrus-lifted' },
-  { id: 'sweet', label: 'Sweet', emoji: '🍰', blurb: 'Sugar, pastry, something cold' },
+  {
+    id: 'sweet',
+    label: 'Sweet',
+    emoji: '🍰',
+    blurb: 'Sugar, pastry, something cold',
+    /** Carries the Munch+ badge and the rainbow treatment. */
+    premium: true,
+  },
 ];
 
 /**

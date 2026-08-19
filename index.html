@@ -12,6 +12,20 @@
   <link rel="stylesheet" href="assets/styles.css" />
 </head>
 <body>
+  <!-- The candy stripe for the Munch+ plus sign. Defined once and referenced
+       by every badge, so the pattern id stays unique in the document. -->
+  <svg class="sprite" width="0" height="0" aria-hidden="true" focusable="false">
+    <defs>
+      <!-- Fine enough that several stripes read at badge size, where the whole
+           plus is about 10px across. -->
+      <pattern id="munch-cane" width="3" height="3" patternUnits="userSpaceOnUse"
+               patternTransform="rotate(45)">
+        <rect width="3" height="3" fill="#fff8f4" />
+        <rect width="1.5" height="3" fill="#e5342a" />
+      </pattern>
+    </defs>
+  </svg>
+
   <div class="app">
     <header class="app__header">
       <a class="brand" href="./" aria-label="Munch home">
@@ -46,7 +60,10 @@
       <!-- Results -->
       <section class="screen screen--results" id="screen-results" data-step="2" aria-labelledby="results-title" hidden>
         <div class="diagnosis" id="diagnosis">
-          <p class="screen__eyebrow">Diagnosis</p>
+          <p class="screen__eyebrow">
+            Diagnosis
+            <span class="premium premium--inline" id="premium-flag" hidden></span>
+          </p>
           <h1 class="screen__title" id="results-title"></h1>
           <p class="diagnosis__verdict" id="diagnosis-verdict"></p>
           <div class="swap" id="cuisine-swap" hidden>
@@ -84,6 +101,9 @@
               </select>
             </label>
           </div>
+
+          <!-- Filled only when the venues themselves point at a dish. -->
+          <p class="suggestion" id="suggestion" hidden></p>
 
           <div class="results__panes">
             <div class="results__map" id="map-panel" aria-label="Map of nearby places">

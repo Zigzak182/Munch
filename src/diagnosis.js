@@ -128,6 +128,15 @@ const CUISINE_DEPTH = 3;
 const ALTERNATIVES = 3;
 
 /**
+ * How many dishes the venue-grounded suggestion may choose between.
+ *
+ * Wider than the three that shape the search, because the point is to find
+ * what the neighbourhood actually supports — and the fourth-best fit for your
+ * craving is a better answer than the best fit that nowhere nearby serves.
+ */
+const CANDIDATE_DEPTH = 6;
+
+/**
  * Rank the cuisines themselves against a texture/flavour pair.
  *
  * The app asks two questions and decides the cuisine, so this is where that
@@ -217,6 +226,11 @@ export function diagnose(answers) {
       ?? 'An unusual craving. We respect it.',
     /** Internal only — never rendered. See the module comment. */
     matches,
+    /**
+     * A wider slice of the same ranking, for suggest.js to test against the
+     * venues that actually came back. Also never rendered on its own.
+     */
+    candidates: rankDishes({ ...answers, cuisine: cuisine.id }, { limit: CANDIDATE_DEPTH }),
     terms: searchTerms({ ...answers, cuisine: cuisine.id }, matches),
   };
 }

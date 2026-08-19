@@ -12,6 +12,7 @@ import { CUISINES, FLAVORS, TEXTURES } from './data.js';
 import { diagnose } from './diagnosis.js';
 import { LocationError, currentPosition, formatDistance, travelTime } from './geo.js';
 import { PlacesError, activeProvider, findNearbyPlaces, geocode } from './places.js';
+import { describeSuggestion, suggestDish } from './suggest.js';
 import { photoLimit } from './config.js';
 import { playReveal } from './reveal.js';
 import * as mapView from './map.js';
@@ -48,6 +49,21 @@ const escapeHtml = (value = '') => String(value).replace(/[&<>"']/g, (char) => (
 
 // ---------------------------------------------------------------- rendering
 
+/**
+ * The Munch+ mark: the wordmark plus a candy-striped plus sign.
+ *
+ * The stripe pattern is defined once in the document, so the `+` is a real
+ * shape rather than a character that may or may not have a glyph — there is no
+ * candy cane in the emoji set, and a missing glyph renders as a blank box.
+ */
+const PREMIUM_BADGE = `
+  <span class="premium__word" aria-hidden="true">Munch</span>
+  <svg class="premium__plus" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+    <path d="M4.6 0h2.8v4.6H12v2.8H7.4V12H4.6V7.4H0V4.6h4.6z"
+          fill="url(#munch-cane)" stroke="rgba(120,20,10,.35)" stroke-width=".5"
+          stroke-linejoin="round" />
+  </svg>`;
+
 function renderOptions(step) {
   const mount = $(step.mount);
   mount.innerHTML = '';
@@ -55,11 +71,12 @@ function renderOptions(step) {
   step.options.forEach((option) => {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'option';
+    button.className = option.premium ? 'option option--premium' : 'option';
     button.role = 'radio';
     button.dataset.value = option.id;
     button.setAttribute('aria-checked', String(state[step.key] === option.id));
     button.innerHTML = `
+      ${option.premium ? `<span class="premium" role="img" aria-label="Munch Plus">${PREMIUM_BADGE}</span>` : ''}
       <span class="option__emoji" aria-hidden="true">${option.emoji}</span>
       <span class="option__label">${escapeHtml(option.label)}</span>
       <span class="option__blurb">${escapeHtml(option.blurb)}</span>
@@ -126,8 +143,44 @@ function renderDiagnosis() {
   $('results-title').textContent = result.headline;
   $('diagnosis-verdict').textContent = result.verdict;
 
+  // The dessert path is the Munch+ feature, so it says so.
+  const flag = $('premium-flag');
+  flag.hidden = result.course !== 'dessert';
+  flag.innerHTML = flag.hidden ? '' : PREMIUM_BADGE;
+  if (!flag.hidden) {
+    flag.setAttribute('role', 'img');
+    flag.setAttribute('aria-label', 'Munch Plus');
+  }
+
   renderSwap(result);
   return result;
+}
+
+/**
+ * What the venues themselves point at.
+ *
+ * This is the only place a dish name reaches the screen, and it is read *from*
+ * the results rather than asserted over them — see suggest.js. When nothing
+ * supports a dish, nothing is shown; the wording never says a venue serves
+ * anything, because that is not something we can know.
+ */
+function renderSuggestion(result) {
+  const element = $('suggestion');
+  const suggestion = suggestDish(result.candidates, state.places, { cuisine: result.cuisine });
+
+  if (!suggestion) {
+    element.hidden = true;
+    element.innerHTML = '';
+    return;
+  }
+
+  const { lead, note } = describeSuggestion(suggestion);
+  element.dataset.confidence = suggestion.confidence;
+  element.innerHTML = `
+    <span class="suggestion__lead">${escapeHtml(lead)}</span>
+    <span class="suggestion__note">${escapeHtml(note)}</span>
+  `;
+  element.hidden = false;
 }
 
 /**
@@ -287,7 +340,12 @@ function renderList() {
 function renderResults() {
   const results = $('results');
   results.hidden = state.places.length === 0;
-  if (state.places.length === 0) return;
+  if (state.places.length === 0) {
+    $('suggestion').hidden = true;
+    return;
+  }
+
+  renderSuggestion(diagnose(state));
 
   // Report how far the results actually reach, not how far we searched — the
   // radius widens in fixed steps and would overstate the distance.
