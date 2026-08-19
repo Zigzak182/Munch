@@ -28,6 +28,26 @@ export function googleApiKey() {
 export const hasGoogle = () => googleApiKey().length > 0;
 
 /**
+ * Base URL of the Munch API, if one is deployed.
+ *
+ * When set, venues and geocoding go through it instead of straight to Google,
+ * which is what keeps the Places key off the page and makes the Munch+ gate
+ * enforceable. Trailing slashes are trimmed so callers can append paths.
+ *
+ * The Maps *JavaScript* key is separate and still public — a basemap cannot be
+ * drawn without one. Restrict that key to the Maps JavaScript API only, and
+ * keep the Places key server-side.
+ */
+export function apiBase() {
+  const value = config().apiBase;
+  if (typeof value !== 'string') return '';
+  return value.trim().replace(/\/+$/, '');
+}
+
+/** True when the app should talk to its own backend rather than to Google. */
+export const hasApi = () => apiBase().length > 0;
+
+/**
  * Which venue provider to use.
  *
  * `auto` (the default) uses Google when a key is present. `osm` forces the

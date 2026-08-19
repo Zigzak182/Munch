@@ -1,0 +1,12 @@
+{
+  "name": "munch-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Key custody and paywall enforcement for Munch.",
+  "scripts": {
+    "test": "node --test test/",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  }
+}

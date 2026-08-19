@@ -1,0 +1,25 @@
+# Cloudflare Workers deployment for the Munch API.
+#
+# The worker imports from ../src (data.js, places-shared.js, geo.js) so the
+# cuisine and course definitions have one home rather than two that drift.
+# wrangler bundles those in; no build step of our own.
+
+name = "munch-api"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+# Non-secret settings. Secrets go through `wrangler secret put` — never here,
+# since this file is committed.
+[vars]
+ALLOWED_ORIGINS = "https://www.what2food.com,https://what2food.com"
+CACHE_MINUTES = "45"
+TOKEN_TTL_HOURS = "24"
+FIELD_TIER = "enterprise"
+APPLE_ENVIRONMENT = "production"
+
+# Shared cache and rate-limit counters. Create with:
+#   wrangler kv namespace create MUNCH_KV
+# then paste the id below.
+[[kv_namespaces]]
+binding = "MUNCH_KV"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"

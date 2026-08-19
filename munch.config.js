@@ -20,6 +20,18 @@
  * An unrestricted key on a public site will eventually be scraped and used.
  */
 window.MUNCH_CONFIG = {
+  /**
+   * Base URL of the Munch API, if you have deployed one (see server/README).
+   *
+   * When set, venues and geocoding go through it instead of straight to
+   * Google. That is what keeps the Places key off this page and makes the
+   * Munch+ gate enforceable — a paywall in this file is a suggestion.
+   *
+   * With a backend, the key below should be restricted to the **Maps
+   * JavaScript API only**; the Places key lives in the worker's secrets.
+   */
+  apiBase: '',
+
   /** Google Maps Platform API key. Leave empty to run without Google. */
   googleMapsApiKey: 'AIzaSyAgzQbVlTCiPP0zL-Y_NPdKj3yOmNNYjqc',
 

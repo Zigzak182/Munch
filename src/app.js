@@ -383,10 +383,16 @@ function showSetupNotice(message) {
  */
 function renderAttribution() {
   const attribution = $('attribution');
-  attribution.innerHTML = activeProvider() === 'google'
-    ? 'Venue data and maps from Google. Your location is sent to Google to find nearby places, and is not stored by this app.'
-    : 'Venue data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>'
-      + ' via Overpass &amp; Nominatim. Add a Google Maps API key in <code>munch.config.js</code> for better coverage and a map.';
+  const notes = {
+    api: 'Venue data and maps from Google, fetched through the Munch API. Your location is'
+      + ' sent to find nearby places, and is not stored by this app.',
+    google: 'Venue data and maps from Google. Your location is sent to Google to find nearby'
+      + ' places, and is not stored by this app.',
+    osm: 'Venue data from <a href="https://www.openstreetmap.org/copyright" target="_blank"'
+      + ' rel="noreferrer">OpenStreetMap</a> via Overpass &amp; Nominatim. Add a Google Maps'
+      + ' API key in <code>munch.config.js</code> for better coverage and a map.',
+  };
+  attribution.innerHTML = notes[activeProvider()] ?? notes.osm;
 }
 
 function setStatus(message, tone = 'info') {
@@ -491,6 +497,21 @@ async function search(origin, label) {
     renderResults();
   } catch (error) {
     if (error.name === 'AbortError') return;
+
+    // Drop the previous search's results. They belong to a different
+    // diagnosis, and leaving them in state means re-sorting would put them
+    // back on screen underneath the new headline.
+    state.places = [];
+    renderResults();
+
+    // A paywall refusal is not a failure to retry past — retrying produces
+    // the same answer, so the advice would be wrong. Say what it is and
+    // point at the way out.
+    if (error instanceof PlacesError && error.code === 'upgrade') {
+      setStatus(`${error.message} Pick another flavour to keep looking.`, 'warn');
+      return;
+    }
+
     const message = error instanceof PlacesError
       ? error.message
       : 'Something went wrong looking for places.';
