@@ -162,6 +162,44 @@ a { color: var(--accent); }
   letter-spacing: 0.14em;
 }
 
+/*
+ * The sign-in strip.
+ *
+ * Above the footer and below everything that matters — an account is how a
+ * subscription travels between devices, not something anyone came here for.
+ */
+.account {
+  margin-top: auto;
+  padding-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--text-muted);
+}
+
+.account[hidden] { display: none; }
+
+/* The footer's own auto margin would fight this one; once the account strip
+   is present it owns the gap and the footer sits directly beneath. */
+.account:not([hidden]) + .app__footer { margin-top: 0; }
+
+.account__form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.account__form .input { flex: 1 1 220px; min-width: 0; font-size: 14px; }
+.account__form .input[hidden] { display: none; }
+.account__form[hidden] { display: none; }
+
+.account__state strong { color: var(--text); font-weight: 650; }
+.account__status { margin: 0; min-height: 1.2em; }
+.account__status[data-tone="ok"] { color: var(--ok); }
+.account__status[data-tone="warn"] { color: var(--warn); }
+.account__status[data-tone="error"] { color: var(--error); }
+
+@media (max-width: 520px) {
+  .account__form { flex-wrap: nowrap; }
+  .account__form .input { flex: 1 1 auto; }
+}
+
 .app__footer {
   margin-top: auto;
   padding-top: 20px;

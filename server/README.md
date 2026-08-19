@@ -20,11 +20,58 @@ which to ask for dessert venues, so there is nothing to forge.
 
 | method | path | what it does |
 | --- | --- | --- |
-| `POST` | `/v1/session` | Exchange a device id (and optionally a store purchase) for a signed token |
+| `POST` | `/v1/session` | Anonymous session for a device id (optionally with a store purchase) |
+| `POST` | `/v1/auth/code` | Email a six-digit sign-in code |
+| `POST` | `/v1/auth/verify` | Exchange the code for a signed-in session |
+| `POST` | `/v1/purchase` | Attach a store purchase to the signed-in account |
+| `GET` | `/v1/me` | Who this is, and what they are entitled to |
+| `DELETE` | `/v1/me` | Delete the account — required by both stores |
 | `POST` | `/v1/places` | Nearby venues for a course + cuisine. Enforces the paywall |
 | `POST` | `/v1/geocode` | Resolve a typed place name |
 | `GET` | `/v1/photo` | 302 to a photo, with the key kept behind |
 | `GET` | `/v1/health` | Readiness, and which settings are missing |
+
+## Accounts
+
+Optional, and only enabled when a D1 binding exists — without one the service
+runs exactly as it did before, anonymously and device-scoped, and the auth
+routes return 503 rather than pretending.
+
+**Sign-in is a six-digit code by email. No passwords**, so there is nothing to
+leak, no reset flow, and no third-party login — which also keeps Apple's
+Sign in with Apple requirement off the table, since that only binds apps
+offering social login.
+
+**Signing in is never required to use Munch.** It is two questions and a map;
+a wall in front of that would cost more users than the subscription is worth.
+An account is how a subscription *travels* — from the phone it was bought on
+to a laptop, and across a reinstall.
+
+What the design protects against:
+
+- **Codes are stored hashed**, so a dumped database is not a set of live
+  credentials, and they are single-use with a 10-minute life and 5 attempts.
+- **The response never reveals whether an address has an account** — same
+  status, same body, whether or not the mail was sent. Otherwise this becomes
+  a way to ask "does this person use Munch?".
+- **A purchase belongs to one account.** `purchase_id` is unique table-wide
+  and the conflict clause does not move `account_id`, so a receipt passed
+  between friends lights up only whoever claimed it first.
+- **`/v1/me` re-reads the tier from the database** rather than trusting the
+  token, so a lapsed subscription is reflected without waiting for expiry.
+
+Searches still take the tier from the token, because a database read on every
+search is latency users feel. The window is `TOKEN_TTL_HOURS` — the same
+window the refund gap already had.
+
+### Who is paying
+
+```bash
+wrangler d1 execute munch --remote --command \
+  "SELECT a.email, e.platform, e.state, datetime(e.expires_at,'unixepoch') AS expires
+     FROM entitlements e JOIN accounts a ON a.id = e.account_id
+    WHERE e.state = 'active' ORDER BY e.expires_at DESC"
+```
 
 Refusals are meaningful: **402** means the tier does not include that course
 (the app shows an upsell), **401** means the token is missing, forged or

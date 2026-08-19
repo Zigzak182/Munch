@@ -13,6 +13,7 @@ import { diagnose } from './diagnosis.js';
 import { LocationError, currentPosition, formatDistance, travelTime } from './geo.js';
 import { PlacesError, activeProvider, findNearbyPlaces, geocode } from './places.js';
 import { describeSuggestion, suggestDish } from './suggest.js';
+import { initAccount } from './account.js';
 import { photoLimit } from './config.js';
 import { playReveal } from './reveal.js';
 import * as mapView from './map.js';
@@ -613,6 +614,15 @@ function bindEvents() {
 function init() {
   STEPS.slice(0, RESULTS).forEach(renderOptions);
   renderAttribution();
+  initAccount();
+
+  // Signing in can turn Munch+ on mid-session, so a search refused a moment
+  // ago is worth retrying rather than leaving the upgrade notice sitting
+  // there under a diagnosis that would now work.
+  document.addEventListener('munch:entitlement-changed', () => {
+    if (state.origin && state.step === RESULTS) search(state.origin, state.originLabel);
+  });
+
   bindEvents();
   if (!restoreFromHash()) renderStep();
 }

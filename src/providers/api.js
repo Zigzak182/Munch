@@ -130,8 +130,54 @@ export function session({ purchase } = {}) {
 
 /** What this session may do — the app asks before offering Munch+ features. */
 export async function entitlement() {
-  const { tier, courses, label } = await session();
-  return { tier, courses, label };
+  const { tier, courses, label, signedIn, email } = await session();
+  return { tier, courses, label, signedIn: Boolean(signedIn), email: email ?? '' };
+}
+
+/** Forget the session. The token still exists until it expires server-side. */
+export function signOut() {
+  try {
+    storage()?.removeItem(SESSION_KEY);
+  } catch {
+    /* nothing to clear */
+  }
+  sessionPromise = null;
+}
+
+/**
+ * Delete the account for good.
+ *
+ * Required by both stores before they will accept an app with accounts. It
+ * does not cancel a subscription — only the store can — and the response says
+ * so, which the UI passes on verbatim.
+ */
+export async function deleteAccount() {
+  const { token } = await session();
+  const result = await request('/v1/me', { method: 'DELETE', token });
+  signOut();
+  return result;
+}
+
+/** Ask for a sign-in code. Resolves whether or not the address has an account. */
+export async function requestLoginCode(email) {
+  return request('/v1/auth/code', { body: { email, deviceId: deviceId() } });
+}
+
+/**
+ * Exchange the code for a signed-in session.
+ *
+ * The result replaces whatever session was cached, so the app is immediately
+ * operating as the account rather than the device.
+ */
+export async function verifyLoginCode(email, code) {
+  const result = await request('/v1/auth/verify', { body: { email, code } });
+  try {
+    storage()?.setItem(SESSION_KEY, JSON.stringify(result));
+  } catch {
+    /* memory-only session is fine */
+  }
+  sessionPromise = null;
+  return result;
 }
 
 /**
