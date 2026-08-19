@@ -46,4 +46,40 @@ window.MUNCH_CONFIG = {
    * Management to restyle the map without touching code.
    */
   mapId: '',
+
+  // ------------------------------------------------------------ running cost
+
+  /**
+   * Minutes a billed provider response stays reusable.
+   *
+   * Repeat searches are common and none of them are new information: a
+   * reload, a shared link opened twice, tapping "Use my location" again after
+   * dismissing the first prompt. Those are served from the tab's cache
+   * instead of being charged again. 0 disables it.
+   */
+  cacheMinutes: 30,
+
+  /**
+   * How much data each search asks Google for — which is what decides the
+   * price of the call, since the most expensive field prices the whole thing.
+   *
+   *   'enterprise'  ratings, price, opening hours, contact details (default)
+   *   'pro'         none of those — name, type, address, distance, photo
+   *   'essentials'  also drops photos and the Google listing link
+   *
+   * Dropping a tier is a real cut in per-search cost and a real cut in what a
+   * venue card can say. Check Google's current SKU pricing before budgeting
+   * against it.
+   */
+  fieldTier: 'enterprise',
+
+  /**
+   * Which venue source to use.
+   *
+   *   'auto'    Google when a key is set, OpenStreetMap otherwise (default)
+   *   'osm'     always OpenStreetMap — no map, no ratings, and no per-search
+   *             cost at all. The switch to throw to run this for free.
+   *   'google'  Google, falling back to OSM if the key is missing
+   */
+  provider: 'auto',
 };

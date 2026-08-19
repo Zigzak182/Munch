@@ -10,6 +10,12 @@ const DEMO_MAP_ID = 'DEMO_MAP_ID';
 /** Photos on the first few cards only — see `photoLimit`. */
 const DEFAULT_PHOTO_LIMIT = 3;
 
+/** How long a billed provider response stays reusable. */
+const DEFAULT_CACHE_MINUTES = 30;
+
+const FIELD_TIERS = ['essentials', 'pro', 'enterprise'];
+const PROVIDERS = ['auto', 'google', 'osm'];
+
 const config = () => (typeof window === 'undefined' ? {} : window.MUNCH_CONFIG ?? {});
 
 /** The Google Maps Platform key, or '' when the app should run without it. */
@@ -18,8 +24,58 @@ export function googleApiKey() {
   return typeof key === 'string' ? key.trim() : '';
 }
 
-/** True when Google should be used for venues and the map. */
+/** True when a Google key is configured at all. */
 export const hasGoogle = () => googleApiKey().length > 0;
+
+/**
+ * Which venue provider to use.
+ *
+ * `auto` (the default) uses Google when a key is present. `osm` forces the
+ * keyless OpenStreetMap path even when a key exists, which costs nothing per
+ * search — the switch to throw if a deployment needs to run for free.
+ *
+ * A key is still required for `google`; asking for it without one falls back
+ * to OSM rather than failing every search.
+ */
+export function providerPreference() {
+  const value = config().provider;
+  return PROVIDERS.includes(value) ? value : 'auto';
+}
+
+/**
+ * How much place data each search asks for, which is what decides the SKU
+ * Google bills the call under.
+ *
+ * - `enterprise` (default) — ratings, price, opening hours, contact details.
+ *   The current experience, and the most expensive tier.
+ * - `pro` — drops all of the above. Cards keep name, type, address, distance
+ *   and photo; no stars, no open/closed badge, no price.
+ * - `essentials` — also drops photos and the Google listing link.
+ *
+ * Left at `enterprise` so nothing changes without being asked for. Dropping a
+ * tier is a real cut in per-search cost and a real cut in what a card can say;
+ * that trade is a product decision, not a default.
+ */
+export function fieldTier() {
+  const value = config().fieldTier;
+  return FIELD_TIERS.includes(value) ? value : 'enterprise';
+}
+
+/**
+ * Minutes a cached provider response stays good for. `0` disables caching.
+ *
+ * Repeat searches are common — reloads, shared links, re-prompting for
+ * location — and none of them are new information, so none of them need to be
+ * billed twice.
+ */
+export function cacheMinutes() {
+  const value = config().cacheMinutes;
+  if (value === undefined || value === null) return DEFAULT_CACHE_MINUTES;
+
+  const minutes = Number(value);
+  if (!Number.isFinite(minutes) || minutes < 0) return DEFAULT_CACHE_MINUTES;
+  return minutes;
+}
 
 /**
  * Map ID for cloud styling. Advanced markers require *some* map id, so an

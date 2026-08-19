@@ -70,11 +70,46 @@ there are no ratings, so this is a fallback rather than a mode to ship.
 
 ### Cost
 
-Each search is one Nearby Search call. The requested field set includes
-ratings, price level, opening hours and contact details, which puts the call in
-the **Enterprise** SKU — the most expensive tier. Trim `FIELDS` in
-`src/providers/google.js` from the bottom up to drop into the cheaper Pro tier
-if a free allowance is the priority.
+Each *new* search is one Nearby Search call. Three settings in
+`munch.config.js` decide what that costs, in descending order of how much they
+save and ascending order of what they take away.
+
+**`cacheMinutes: 30`** — repeat searches are served from the tab instead of
+being billed again. A reload, a shared link opened twice, tapping "Use my
+location" after dismissing the first prompt: none of those are new
+information. Costs nothing in data quality. Measured over one session — first
+search, reload, re-tap, then a genuinely different search:
+
+| | billed calls |
+| --- | --- |
+| `cacheMinutes: 30` (default) | **2** |
+| `cacheMinutes: 0` | 5 |
+
+Only non-empty results are cached, so an empty answer stays retryable. The
+cache is keyed on rounded coordinates (~110 m), the venue types and the search
+terms, and lives in `sessionStorage` — so it cannot outlive the visit.
+
+**`fieldTier: 'enterprise'`** — Google prices a search by the most expensive
+field in it, so asking for a rating prices the whole call at the Enterprise
+rate. The tiers are cumulative:
+
+| tier | adds | a card loses |
+| --- | --- | --- |
+| `essentials` | id, name, address, location, types | photos, Google listing link |
+| `pro` | + primary type, listing link, photos | stars, price, open/closed |
+| `enterprise` | + rating, price, hours, contact | — (the default) |
+
+Left at `enterprise` so nothing changes silently; dropping a tier is a real
+cut in cost *and* in what a card can say.
+
+**`provider: 'auto'`** — set it to `'osm'` to run entirely on OpenStreetMap:
+no map and no ratings, but **no per-search cost at all**. The switch to throw
+if a deployment has to run for free, and the natural split if you ever want a
+free tier and a paid one.
+
+The tier split is deliberately conservative — a field whose SKU is uncertain
+sits with the dearer set, so a cheaper tier cannot cost more than expected.
+Check Google's current SKU pricing before budgeting against any of this.
 
 **Photos are billed separately, per image fetched**, so they are **not loaded
 automatically**. The top `photoLimit` cards (default 3) show a "Show photo"
@@ -88,10 +123,10 @@ ordinary search costs nothing in photos.
 | `showPhotos: false` | same, and no photo URLs are built at all |
 
 The limit follows display order, so re-sorting moves the buttons to whatever is
-now on top. Billable units per search: one Nearby Search, one map load, a
-geocode only if a place name was typed, and a photo only per tap. Multiply
-against Google's current pricing to estimate a bill; set a budget alert either
-way.
+now on top. Billable units per search: one Nearby Search **unless the cache
+answers it**, one map load, a geocode only if a place name was typed (also
+cached), and a photo only per tap. Multiply against Google's current pricing to
+estimate a bill; set a budget alert either way.
 
 ## How it works
 
@@ -192,6 +227,7 @@ src/diagnosis.js      scoring and ranking (pure)
 src/geo.js            haversine distance, formatting, geolocation wrapper
 src/reveal.js         the cuisine reveal overlay
 src/config.js         reads the deployment config
+src/cache.js          TTL cache for billed provider responses
 src/google.js         loads the Maps JS SDK once, and reports auth failures
 src/places.js         picks a provider
 src/places-shared.js  the shared place shape, ranking and errors
