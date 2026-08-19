@@ -11,7 +11,7 @@
  * and safe to import from anywhere.
  */
 
-import { CUISINES, DISHES, DIAGNOSES, FLAVORS, TEXTURES } from './data.js';
+import { COURSES, CUISINES, DISHES, DIAGNOSES, FLAVORS, SWEET, TEXTURES } from './data.js';
 
 const WEIGHT_CUISINE = 4;
 const WEIGHT_TEXTURE = 3;
@@ -55,6 +55,26 @@ export function scoreDish(dish, { texture, flavor, cuisine }) {
 const breadth = (dish) => dish.textures.length + dish.flavors.length;
 
 /**
+ * Which course an answer is asking for. Only `sweet` crosses over.
+ *
+ * The two catalogues never mix: asking for something sweet should not return
+ * a curry house, and asking for something savoury should not return a
+ * gelateria. Every ranking filters on this first.
+ */
+export function courseFor(flavor) {
+  return flavor === SWEET ? 'dessert' : 'main';
+}
+
+/** A dish's course. Anything unlabelled is a main, which is most of them. */
+const courseOf = (dish) => dish.course ?? 'main';
+
+/** The dishes eligible for a given answer — one course, never both. */
+export function dishesForCourse(flavor, dishes = DISHES) {
+  const course = courseFor(flavor);
+  return dishes.filter((dish) => courseOf(dish) === course);
+}
+
+/**
  * Rank every dish for the given answers.
  *
  * Dishes outside the chosen cuisine are dropped when the cuisine yields
@@ -67,7 +87,7 @@ const breadth = (dish) => dish.textures.length + dish.flavors.length;
  * and savoury, since the latter scores the same from several directions.
  */
 export function rankDishes(answers, { limit = 3, dishes = DISHES } = {}) {
-  const scored = dishes
+  const scored = dishesForCourse(answers.flavor, dishes)
     .map((dish) => ({ dish, score: scoreDish(dish, answers) }))
     .filter((entry) => entry.score > 0)
     .sort((a, b) => b.score - a.score
@@ -85,10 +105,14 @@ export function rankDishes(answers, { limit = 3, dishes = DISHES } = {}) {
  */
 export function searchTerms(answers, matches) {
   const cuisine = findOption(CUISINES, answers.cuisine);
-  const terms = [
-    ...matches.flatMap((dish) => dish.terms),
-    ...(cuisine?.osmCuisines ?? []),
-  ];
+  const course = COURSES[courseFor(answers.flavor)];
+
+  // On the dessert path the cuisine's own tags would drag in "ramen" and
+  // "kebab", so the course supplies the backstop instead. The matched dishes'
+  // terms still lead, which is what keeps a dessert search cuisine-flavoured.
+  const backstop = course.terms ?? cuisine?.osmCuisines ?? [];
+
+  const terms = [...matches.flatMap((dish) => dish.terms), ...backstop];
   return [...new Set(terms.map((term) => term.toLowerCase()))];
 }
 
@@ -116,10 +140,11 @@ const ALTERNATIVES = 3;
  */
 export function rankCuisines(answers, { dishes = DISHES } = {}) {
   const pair = { texture: answers.texture, flavor: answers.flavor };
+  const eligible = dishesForCourse(answers.flavor, dishes);
 
   return CUISINES
     .map((cuisine) => {
-      const ranked = dishes
+      const ranked = eligible
         .filter((dish) => dish.cuisine === cuisine.id)
         .map((dish) => ({ dish, score: scoreDish(dish, pair) }))
         .sort((a, b) => b.score - a.score
@@ -162,10 +187,25 @@ export function diagnose(answers) {
     .filter(Boolean)
     .join(' · ');
 
+  const courseId = courseFor(answers.flavor);
+  const course = COURSES[courseId];
+
   return {
     texture,
     flavor,
     cuisine,
+    course: courseId,
+    /**
+     * Venue type hints, already resolved for the course, so the caller does
+     * not have to know that sweet means bakeries rather than restaurants.
+     * Spread straight into `findNearbyPlaces`.
+     */
+    search: {
+      googleTypes: course.googleTypes ?? cuisine.googleTypes,
+      cuisineTags: course.osmCuisines ?? cuisine.osmCuisines,
+      amenities: course.osmAmenities ?? undefined,
+      shops: course.osmShops ?? [],
+    },
     /** True when the cuisine was derived rather than pinned by the user. */
     derived: !pinned,
     alternatives: ranking

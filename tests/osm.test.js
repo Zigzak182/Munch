@@ -45,6 +45,37 @@ test('query falls back to any eatery when no terms are supplied', () => {
   assert.match(query, /amenity/);
 });
 
+test('a dessert search asks for shops, which is how bakeries are mapped', () => {
+  // A bakery is `shop=bakery` with no amenity and usually no cuisine tag, so
+  // matching on amenity alone would return almost none of them.
+  const query = buildOverpassQuery(ORIGIN, {
+    radius: 1200,
+    amenities: ['ice_cream', 'cafe'],
+    shops: ['bakery', 'pastry'],
+    cuisineTags: ['ice_cream'],
+  });
+
+  assert.match(query, /nwr\["shop"~"\^\(bakery\|pastry\)\$"\]/);
+  assert.match(query, /"amenity"~"\^\(ice_cream\|cafe\)\$"/);
+  assert.doesNotMatch(query, /restaurant/);
+});
+
+test('the shop clause is absent from an ordinary search', () => {
+  const query = buildOverpassQuery(ORIGIN, { cuisineTags: ['mexican'], radius: 900 });
+  assert.doesNotMatch(query, /"shop"/);
+  assert.match(query, /restaurant/);
+});
+
+test('a bakery with no cuisine tag still gets a readable type', () => {
+  const place = normalizeElement({
+    type: 'node', id: 7, lat: 51.5, lon: -0.12,
+    tags: { name: 'Corner Bakehouse', shop: 'bakery' },
+  });
+
+  assert.equal(place.typeLabel, 'bakery');
+  assert.deepEqual(place.types, ['bakery']);
+});
+
 test('regex metacharacters in terms cannot break out of the query', () => {
   const query = buildOverpassQuery(ORIGIN, { nameTerms: ['b.b(q)'], radius: 500 });
   assert.match(query, /b\\\.b\\\(q\\\)/);

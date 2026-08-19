@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { CUISINES, DISHES, FLAVORS, TEXTURES } from '../src/data.js';
-import { diagnose, rankCuisines, rankDishes, scoreDish, searchTerms } from '../src/diagnosis.js';
+import { COURSES, CUISINES, DISHES, FLAVORS, SWEET, TEXTURES } from '../src/data.js';
+import {
+  courseFor, diagnose, dishesForCourse, rankCuisines, rankDishes, scoreDish, searchTerms,
+} from '../src/diagnosis.js';
 
 /** Every texture/flavour pair the quiz can produce. */
 const PAIRS = TEXTURES.flatMap((texture) =>
@@ -158,6 +160,110 @@ test('every pair has a verdict written for it', () => {
       `missing verdict copy for ${pair.texture}-${pair.flavor}`,
     );
   }
+});
+
+// ------------------------------------------------------------- the sweet path
+
+const DESSERTS = DISHES.filter((dish) => dish.course === 'dessert');
+const SWEET_PAIRS = TEXTURES.map((texture) => ({ texture: texture.id, flavor: SWEET }));
+
+test('sweet is the only flavour that changes the course', () => {
+  assert.equal(courseFor(SWEET), 'dessert');
+  for (const flavor of FLAVORS.filter((entry) => entry.id !== SWEET)) {
+    assert.equal(courseFor(flavor.id), 'main', `${flavor.id} should stay a main`);
+  }
+});
+
+test('the two catalogues never mix', () => {
+  // A savoury craving must not reach a gelateria, and a sweet one must not
+  // reach a curry house — so neither ranking may see the other's dishes.
+  assert.ok(DESSERTS.length > 0);
+  assert.ok(dishesForCourse(SWEET).every((dish) => dish.course === 'dessert'));
+  assert.ok(dishesForCourse('savory').every((dish) => dish.course !== 'dessert'));
+
+  for (const pair of PAIRS) {
+    const isSweet = pair.flavor === SWEET;
+    const matches = diagnose(pair).matches;
+    assert.ok(
+      matches.every((dish) => (dish.course === 'dessert') === isSweet),
+      `${pair.texture}/${pair.flavor} mixed courses`,
+    );
+  }
+});
+
+test('every dessert is tagged sweet, and only desserts are', () => {
+  for (const dish of DESSERTS) {
+    assert.ok(dish.flavors.includes(SWEET), `${dish.id} is a dessert but not sweet`);
+  }
+  for (const dish of DISHES.filter((entry) => entry.course !== 'dessert')) {
+    assert.ok(!dish.flavors.includes(SWEET), `${dish.id} is sweet but not a dessert`);
+  }
+});
+
+test('the dessert catalogue is level across cuisines and covers every texture', () => {
+  // Scores sum a cuisine's best three, so a cuisine with more desserts would
+  // win the sweet pairs on depth alone. Same rule as the main catalogue.
+  const counts = CUISINES.map((cuisine) =>
+    DESSERTS.filter((dish) => dish.cuisine === cuisine.id).length);
+
+  assert.equal(new Set(counts).size, 1, `uneven dessert depth: ${counts.join(', ')}`);
+  assert.ok(counts[0] >= TEXTURES.length);
+
+  for (const cuisine of CUISINES) {
+    const leading = new Set(
+      DESSERTS.filter((dish) => dish.cuisine === cuisine.id).map((dish) => dish.textures[0]),
+    );
+    assert.deepEqual(
+      [...leading].sort(),
+      TEXTURES.map((texture) => texture.id).sort(),
+      `${cuisine.id} desserts do not lead on every texture`,
+    );
+  }
+});
+
+test('each sweet pair lands on a distinct cuisine, decisively', () => {
+  // Four textures against one flavour is the whole dessert matrix, so a tie
+  // here would show up as the same cuisine every time someone wants pudding.
+  const picked = SWEET_PAIRS.map((pair) => diagnose(pair).cuisine.id);
+  assert.equal(new Set(picked).size, SWEET_PAIRS.length, `collapsed to ${picked.join(', ')}`);
+
+  for (const pair of SWEET_PAIRS) {
+    const [winner, runnerUp] = rankCuisines(pair);
+    assert.ok(
+      winner.score > runnerUp.score,
+      `${pair.texture}/sweet ties at ${winner.score} — the result rests on a tie-break`,
+    );
+  }
+});
+
+test('a dessert search looks for bakeries, not restaurants', () => {
+  const sweet = diagnose({ texture: 'crispy', flavor: SWEET });
+  const savoury = diagnose({ texture: 'crispy', flavor: 'savory' });
+
+  assert.equal(sweet.course, 'dessert');
+  assert.deepEqual(sweet.search.googleTypes, COURSES.dessert.googleTypes);
+  assert.ok(sweet.search.googleTypes.includes('bakery'));
+  assert.ok(sweet.search.shops.includes('bakery'));
+  assert.ok(!sweet.search.googleTypes.some((type) => type.endsWith('_restaurant')));
+
+  // The savoury path is untouched: still the cuisine's own restaurant types.
+  assert.equal(savoury.course, 'main');
+  assert.deepEqual(savoury.search.googleTypes, savoury.cuisine.googleTypes);
+  assert.deepEqual(savoury.search.shops, []);
+  assert.equal(savoury.search.amenities, undefined);
+});
+
+test('dessert search terms stay sweet and still carry the cuisine', () => {
+  const answers = { texture: 'crispy', flavor: SWEET, cuisine: 'mexican' };
+  const terms = searchTerms(answers, rankDishes(answers));
+
+  // The dish terms lead, which is what keeps it Mexican rather than generic.
+  assert.ok(terms.includes('churro'));
+  // ...and the cuisine's savoury tags must not ride along.
+  for (const savoury of ['taco', 'burrito', 'tex-mex']) {
+    assert.ok(!terms.includes(savoury), `"${savoury}" leaked into a dessert search`);
+  }
+  assert.ok(terms.includes('bakery'));
 });
 
 test('nothing user-facing in a diagnosis names a dish', () => {

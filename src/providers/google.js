@@ -7,32 +7,54 @@
  */
 
 import { loadGoogle } from '../google.js';
-import { showPhotos } from '../config.js';
+import { fieldTier, showPhotos } from '../config.js';
 import { MAX_RESULTS, PlacesError, SEARCH_RADIUS, WIDE_RADIUS, rankPlaces } from '../places-shared.js';
 
 /**
- * Fields requested for each place.
+ * Fields requested for each place, grouped by billing tier.
  *
- * Ordered by billing tier: everything up to `types` is Pro, and the rest
- * (ratings, price, hours, contact) moves the call into the Enterprise SKU.
- * Trim from the bottom to lower the per-search cost.
+ * Google prices a Nearby Search by the most expensive field in the request,
+ * so asking for a rating prices the *whole* call at the Enterprise rate. The
+ * tiers are cumulative, and the split is deliberately conservative: a field
+ * whose tier is uncertain is grouped with the dearer set, so choosing a
+ * cheaper tier can never cost more than expected.
+ *
+ * Selected by `fieldTier` in munch.config.js. Verify against Google's current
+ * SKU documentation before relying on the split for a budget.
  */
-const FIELDS = [
+const ESSENTIALS_FIELDS = [
   'id',
   'displayName',
   'formattedAddress',
   'location',
-  'primaryTypeDisplayName',
   'types',
+];
+
+const PRO_FIELDS = [
+  ...ESSENTIALS_FIELDS,
+  'primaryTypeDisplayName',
   'googleMapsURI',
+  'photos',
+];
+
+const ENTERPRISE_FIELDS = [
+  ...PRO_FIELDS,
   'rating',
   'userRatingCount',
   'priceLevel',
   'regularOpeningHours',
   'websiteURI',
   'nationalPhoneNumber',
-  'photos',
 ];
+
+export const FIELD_TIERS = {
+  essentials: ESSENTIALS_FIELDS,
+  pro: PRO_FIELDS,
+  enterprise: ENTERPRISE_FIELDS,
+};
+
+/** The field list for the configured tier. */
+export const fieldsFor = (tier = fieldTier()) => FIELD_TIERS[tier] ?? ENTERPRISE_FIELDS;
 
 /** Requested photo size. Cards are never wider than this on a 2x screen. */
 const PHOTO_WIDTH = 720;
@@ -158,7 +180,7 @@ export async function findNearbyPlaces(origin, { googleTypes = [], nameTerms = [
     let response;
     try {
       response = await Place.searchNearby({
-        fields: FIELDS,
+        fields: fieldsFor(),
         locationRestriction: { center: { lat: origin.lat, lng: origin.lon }, radius },
         includedPrimaryTypes,
         maxResultCount: Math.min(PAGE_LIMIT, MAX_RESULTS),
