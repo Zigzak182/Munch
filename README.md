@@ -14,7 +14,8 @@ Cheesy · Spicy · Savory · Fresh · Sweet  →  what it tastes of
 
 **Sweet** is the Munch+ answer: it carries a rainbow rim and a candy-striped
 badge, and switches the whole search to bakeries, gelaterias and dessert
-counters instead of restaurants. See [Courses](#courses).
+counters instead of restaurants. It names no cuisine — dessert is its own
+course, not an Italian or American afterthought. See [Courses](#courses).
 
 Deciding the cuisine is the point: picking it yourself is the step that stalls
 people. The results screen still lists the runner-up cuisines underneath, so
@@ -220,6 +221,7 @@ changes more than the dish list:
 | | main | dessert |
 | --- | --- | --- |
 | catalogue | 60 dishes | 24 desserts |
+| cuisine | derived and shown | **none — see below** |
 | Google types | the cuisine's restaurants | `bakery`, `cafe`, `ice_cream_shop`, `donut_shop`, … |
 | OSM tags | `amenity=restaurant\|cafe\|…` | plus `shop=bakery\|pastry\|…` |
 | backstop terms | the cuisine's `osmCuisines` | `dessert`, `patisserie`, `gelato`, … |
@@ -228,11 +230,29 @@ The two catalogues never mix — a savoury craving cannot reach a gelateria and
 a sweet one cannot reach a curry house — because every ranking filters on
 course before it scores anything.
 
-The cuisine is still derived, so a dessert search stays cuisine-flavoured: the
-matched dishes' own terms (`churro`, `baklava`, `pasticceria`) lead the venue
-ranking, and only the generic backstop follows. Each cuisine carries exactly
-four desserts, one leading on each texture, so no cuisine wins the sweet pairs
-on depth alone — the same rule the main catalogue follows.
+### Dessert has no cuisine
+
+Not an omission. Dessert is a *course*, not a kind of kitchen, and nobody
+craving something crispy and sweet wants to be told "Mexican" first. So the
+sweet path derives no cuisine, shows no cuisine in the headline, and offers no
+runner-ups to swap to.
+
+It also searches better. Deriving one would pin the ranking to that kitchen's
+version — always churros for crispy, never the loukoumades from the Greek
+bakery across the road — when the whole dessert catalogue is the better field
+to draw from. The venue types come from the course either way, so nothing is
+lost by leaving it out.
+
+Two places this has to be enforced rather than assumed, because both would
+reintroduce it quietly:
+
+- A cuisine pinned in a shared link (`#crispy/sweet/mexican`) is ignored.
+- The cuisine is **removed** from the answers before ranking, not merely left
+  unset — `rankDishes` honours whatever `answers.cuisine` holds, so a stale
+  one would narrow the ranking while the screen showed no cuisine at all.
+
+Each cuisine still carries exactly four desserts, one leading on each texture,
+so the catalogue stays balanced and no kitchen dominates the field by depth.
 
 A bakery is mapped in OpenStreetMap as `shop=bakery`, usually with no
 `amenity` and no `cuisine` tag, which is why the fallback provider had to grow

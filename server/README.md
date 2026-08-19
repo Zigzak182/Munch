@@ -16,6 +16,10 @@ types.** It sends a *course* and a *cuisine*, and the server derives the types
 itself — importing the same `src/data.js` the quiz uses. There is no field in
 which to ask for dessert venues, so there is nothing to forge.
 
+The dessert course carries its own venue types and needs no cuisine, so
+`cuisine` is optional there and required everywhere else — a missing one on
+the main path would silently search every restaurant nearby.
+
 ## Endpoints
 
 | method | path | what it does |
