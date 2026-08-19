@@ -120,6 +120,27 @@
       </section>
     </main>
 
+    <!-- Only rendered when a backend is configured; see src/account.js. -->
+    <section class="account" id="account" hidden aria-labelledby="account-title">
+      <h2 class="visually-hidden" id="account-title">Your Munch account</h2>
+      <p class="account__state" id="account-state"></p>
+
+      <form class="account__form" id="account-form" hidden>
+        <label class="visually-hidden" for="account-email">Email address</label>
+        <input class="input" id="account-email" name="email" type="email"
+               autocomplete="email" inputmode="email" placeholder="you@example.com" />
+
+        <label class="visually-hidden" for="account-code">Sign-in code</label>
+        <input class="input" id="account-code" name="code" type="text" hidden
+               autocomplete="one-time-code" inputmode="numeric" maxlength="6"
+               placeholder="6-digit code" />
+
+        <button class="btn" type="submit" id="account-submit">Sign in</button>
+      </form>
+
+      <p class="account__status" id="account-status" role="status" aria-live="polite"></p>
+    </section>
+
     <footer class="app__footer">
       <p id="attribution"></p>
     </footer>

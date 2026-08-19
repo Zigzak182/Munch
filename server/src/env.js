@@ -37,6 +37,20 @@ export function readEnv(env = {}) {
     /** Cloudflare KV, or null when running without one (memory fallback). */
     kv: env.MUNCH_KV ?? null,
 
+    /**
+     * Cloudflare D1, holding accounts and entitlements.
+     *
+     * Optional: without it the service still runs, anonymously and
+     * device-scoped, exactly as it did before accounts existed. Sign-in
+     * routes report 503 rather than pretending.
+     */
+    db: env.MUNCH_DB ?? null,
+
+    mail: {
+      apiKey: String(env.RESEND_API_KEY ?? '').trim(),
+      from: String(env.MAIL_FROM ?? '').trim(),
+    },
+
     apple: {
       keyId: String(env.APPLE_KEY_ID ?? '').trim(),
       issuerId: String(env.APPLE_ISSUER_ID ?? '').trim(),

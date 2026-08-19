@@ -255,8 +255,17 @@ narrower than a check: the client sends a *course* and a *cuisine*, never
 venue types, and the server derives the types itself from this same
 `src/data.js`. There is no field in which to ask for dessert venues.
 
+**Accounts, so a subscription travels.** Sign-in is a six-digit code by email —
+no passwords to leak, no social login (which would drag Apple's Sign in with
+Apple requirement along with it). Signing in is never required to *use* Munch;
+it is how Munch+ follows you from the phone you bought it on to a laptop, and
+across a reinstall.
+
 Set `apiBase` in `munch.config.js` to switch the app onto it. The provider is
 picked in `src/places.js`, and `app.js` never learns which one answered.
+
+Shipping to the app stores is a separate, longer road: see
+[docs/LAUNCH.md](docs/LAUNCH.md).
 
 ## Data sources
 
@@ -288,7 +297,9 @@ src/google.js         loads the Maps JS SDK once, and reports auth failures
 src/places.js         picks a provider
 src/places-shared.js  the shared place shape, ranking and errors
 src/providers/        api.js (backend), google.js (direct), osm.js (keyless)
-server/               the optional backend: key custody and the Munch+ gate
+src/account.js        the sign-in strip; hidden without a backend
+server/               the optional backend: accounts, key custody, the gate
+docs/LAUNCH.md        getting to Google Play and the App Store
 src/map.js            Google Maps wrapper; no-ops without a key
 src/app.js            screen flow and DOM wiring
 tests/                node:test unit tests
