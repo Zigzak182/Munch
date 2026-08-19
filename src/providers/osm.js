@@ -33,14 +33,26 @@ const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 /**
  * Build the Overpass QL query.
  *
- * Two passes are unioned: venues whose `cuisine` tag matches the chosen
- * cuisine, and venues whose *name* hints at the dish (a taqueria rarely tags
- * itself). `out center` collapses ways and relations to a single coordinate.
+ * Passes are unioned: venues whose `cuisine` tag matches the chosen cuisine,
+ * and venues whose *name* hints at the dish (a taqueria rarely tags itself).
+ * `out center` collapses ways and relations to a single coordinate.
+ *
+ * `shops` covers the dessert case. A bakery is mapped as `shop=bakery` with no
+ * amenity and usually no cuisine tag, so it is matched on the shop tag alone —
+ * the shop type *is* the answer there, in a way that `amenity=restaurant`
+ * never is.
  */
-export function buildOverpassQuery({ lat, lon }, { cuisineTags = [], nameTerms = [], radius }) {
-  const amenity = `^(${AMENITIES.join('|')})$`;
+export function buildOverpassQuery(
+  { lat, lon },
+  { cuisineTags = [], nameTerms = [], radius, amenities = AMENITIES, shops = [] },
+) {
+  const amenity = `^(${amenities.join('|')})$`;
   const around = `(around:${Math.round(radius)},${lat.toFixed(6)},${lon.toFixed(6)})`;
   const clauses = [];
+
+  if (shops.length > 0) {
+    clauses.push(`nwr["shop"~"^(${shops.map(escapeRegex).join('|')})$"]${around};`);
+  }
 
   if (cuisineTags.length > 0) {
     const pattern = cuisineTags.map(escapeRegex).join('|');
@@ -84,8 +96,11 @@ export function normalizeElement(element) {
     lat,
     lon,
     address,
-    typeLabel: cuisine.replace(/[;,]/g, ' · ') || (tags.amenity ?? '').replace(/_/g, ' '),
-    types: types.length > 0 ? types : [tags.amenity].filter(Boolean),
+    // A bakery carries neither `cuisine` nor `amenity`, so the shop tag is
+    // what names it — without this every dessert result reads as untyped.
+    typeLabel: cuisine.replace(/[;,]/g, ' · ')
+      || (tags.amenity ?? tags.shop ?? '').replace(/_/g, ' '),
+    types: types.length > 0 ? types : [tags.amenity, tags.shop].filter(Boolean),
     rating: null,
     ratingCount: null,
     priceLevel: '',
@@ -157,11 +172,14 @@ async function postOverpass(query, { signal }) {
  *
  * @returns {Promise<{places: object[], radius: number}>}
  */
-export async function findNearbyPlaces(origin, { cuisineTags = [], nameTerms = [], signal } = {}) {
+export async function findNearbyPlaces(
+  origin,
+  { cuisineTags = [], nameTerms = [], amenities, shops = [], signal } = {},
+) {
   let best = { places: [], radius: SEARCH_RADIUS };
 
   for (const radius of [SEARCH_RADIUS, WIDE_RADIUS]) {
-    const query = buildOverpassQuery(origin, { cuisineTags, nameTerms, radius });
+    const query = buildOverpassQuery(origin, { cuisineTags, nameTerms, radius, amenities, shops });
     const data = await postOverpass(query, { signal });
 
     const box = boundingBox(origin, radius * 1.1);

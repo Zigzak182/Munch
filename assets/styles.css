@@ -264,6 +264,28 @@ a { color: var(--accent); }
   .option__blurb { font-size: 12.5px; }
 }
 
+/* The flavour screen has five options against the other screen's four, so a
+   two-column grid leaves a widow on a third row. It runs full width instead —
+   a deliberate row rather than a gap — and every card loses a little height so
+   three rows still clear the fold. */
+#flavor-options .option { min-height: clamp(84px, 13.5vh, 150px); }
+#flavor-options .option:nth-child(5):last-child { grid-column: 1 / -1; }
+
+/* Three rows of cards plus a Back button the first question does not have.
+   The cards are content-sized at these widths, so the padding is what has to
+   give — without it the screen scrolls by single-figure pixels, which is the
+   most annoying amount to scroll by. */
+@media (max-width: 560px) {
+  #flavor-options { gap: 8px; }
+  #flavor-options .option { padding: 11px 12px; }
+}
+
+@media (min-width: 561px) {
+  /* Wide enough for five across, so the odd one out stops being odd. */
+  #flavor-options { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  #flavor-options .option:nth-child(5):last-child { grid-column: auto; }
+}
+
 /* Short screens — small or older handsets — need more than two columns to
    clear the fold, so the descriptions go. The four labels carry the meaning
    on their own; the descriptions are flavour, and flavour is what you drop. */
@@ -632,6 +654,8 @@ a { color: var(--accent); }
   .screen--quiz .screen__sub { font-size: 20px; max-width: 62ch; }
   .screen--quiz .options { gap: 18px; }
   .screen--quiz .option { min-height: clamp(150px, 21vh, 220px); padding: 24px 22px; }
+  /* Five narrower cards carry less text per line, so they need less height. */
+  #flavor-options .option { min-height: clamp(140px, 19vh, 200px); }
   .screen--quiz .option__label { font-size: 20px; }
   .screen--quiz .option__blurb { font-size: 14.5px; }
   .places { grid-template-columns: 1fr; }

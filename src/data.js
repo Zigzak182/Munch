@@ -14,13 +14,68 @@ export const TEXTURES = [
   { id: 'crispy', label: 'Crispy', emoji: '🍟', blurb: 'Golden edges, fried, shattering' },
 ];
 
-/** Step 2 — the dominant flavour note. */
+/**
+ * Step 2 — the dominant flavour note.
+ *
+ * `sweet` is the one answer that changes *what kind of venue* we look for:
+ * it switches the search from restaurants to bakeries, gelaterias and dessert
+ * counters. See `COURSES` below.
+ */
 export const FLAVORS = [
   { id: 'cheesy', label: 'Cheesy', emoji: '🧀', blurb: 'Melted, rich, pulls apart' },
   { id: 'spicy', label: 'Spicy', emoji: '🌶️', blurb: 'Heat, chilli, a little sweat' },
   { id: 'savory', label: 'Savory', emoji: '🍖', blurb: 'Umami, salty, deeply brown' },
   { id: 'fresh', label: 'Fresh', emoji: '🥗', blurb: 'Bright, herby, citrus-lifted' },
+  { id: 'sweet', label: 'Sweet', emoji: '🍰', blurb: 'Sugar, pastry, something cold' },
 ];
+
+/**
+ * Which venues a course sends you to.
+ *
+ * A craving for something sweet is not answered by a restaurant that happens
+ * to have a dessert menu — it is answered by a bakery, a gelateria or an ice
+ * cream counter. So the sweet path replaces the cuisine's venue types outright
+ * rather than adding to them; the cuisine still shapes the search *terms*, so
+ * an Italian dessert search reaches gelaterias and pasticcerias by name.
+ *
+ * `googleTypes` are Places API (New) primary types. `osmAmenities` and
+ * `osmShops` are the OpenStreetMap tags for the same idea — most dessert
+ * venues are mapped as `shop=bakery` rather than `amenity=restaurant`, which
+ * is why the fallback provider needs both keys.
+ */
+export const COURSES = {
+  main: {
+    // null means "use the cuisine's own list" — mains are the default path.
+    googleTypes: null,
+    osmAmenities: null,
+    osmCuisines: null,
+    osmShops: [],
+  },
+  dessert: {
+    googleTypes: [
+      'bakery', 'cafe', 'ice_cream_shop', 'donut_shop', 'dessert_shop',
+      'candy_store', 'chocolate_shop',
+    ],
+    osmAmenities: ['ice_cream', 'cafe', 'fast_food'],
+    osmShops: ['bakery', 'pastry', 'confectionery', 'chocolate'],
+    osmCuisines: [
+      'ice_cream', 'dessert', 'cake', 'pastry', 'donut', 'waffle', 'crepe',
+      'chocolate', 'frozen_yogurt', 'bubble_tea',
+    ],
+    /*
+     * Backstop search terms. The cuisine's own `osmCuisines` are wrong here —
+     * "ramen" and "kebab" do not belong in a dessert search — so the dessert
+     * path substitutes these behind the matched dishes' own terms.
+     */
+    terms: [
+      'dessert', 'bakery', 'patisserie', 'pastry', 'ice cream', 'gelato',
+      'cake', 'sweets',
+    ],
+  },
+};
+
+/** The flavour that switches the course. Everything else is a main. */
+export const SWEET = 'sweet';
 
 /**
  * Cuisines. No longer asked as a question — derived from the two answers —
@@ -663,6 +718,267 @@ export const DISHES = [
     note: 'Smoked for hours, pulled into a bun with slaw on top.',
     terms: ['pulled pork', 'barbecue', 'bbq', 'american'],
   },
+
+  /*
+   * ---- Desserts ----
+   *
+   * Scored only when the answer is `sweet`, and kept out of every other
+   * ranking by `course`. Four per cuisine — one leading on each texture — so
+   * no cuisine wins the sweet pairs simply by having more entries, the same
+   * depth rule the main catalogue follows.
+   */
+
+  // ---- Asian ----
+  {
+    id: 'sesame-balls',
+    name: 'Sesame balls',
+    cuisine: 'asian',
+    course: 'dessert',
+    textures: ['crunchy', 'soft'],
+    flavors: ['sweet'],
+    note: 'Sesame-crusted shell that gives way to chewy red bean.',
+    terms: ['sesame ball', 'jian dui', 'chinese bakery', 'dim sum'],
+  },
+  {
+    id: 'mochi',
+    name: 'Mochi',
+    cuisine: 'asian',
+    course: 'dessert',
+    textures: ['soft'],
+    flavors: ['sweet'],
+    note: 'Cold pounded rice cake, yielding, dusted in starch.',
+    terms: ['mochi', 'japanese', 'dessert', 'bakery'],
+  },
+  {
+    id: 'mango-sticky-rice',
+    name: 'Mango sticky rice',
+    cuisine: 'asian',
+    course: 'dessert',
+    textures: ['saucy'],
+    flavors: ['sweet', 'fresh'],
+    note: 'Warm coconut cream poured over rice, ripe mango alongside.',
+    terms: ['mango sticky rice', 'thai', 'dessert'],
+  },
+  {
+    id: 'taiyaki',
+    name: 'Taiyaki',
+    cuisine: 'asian',
+    course: 'dessert',
+    textures: ['crispy'],
+    flavors: ['sweet'],
+    note: 'Fish-shaped batter off the iron, custard in the middle.',
+    terms: ['taiyaki', 'japanese', 'bakery', 'dessert'],
+  },
+
+  // ---- Italian ----
+  {
+    id: 'cannoli',
+    name: 'Cannoli',
+    cuisine: 'italian',
+    course: 'dessert',
+    textures: ['crunchy', 'soft'],
+    flavors: ['sweet', 'cheesy'],
+    note: 'Blistered fried shell piped with sweetened ricotta.',
+    terms: ['cannoli', 'pasticceria', 'italian bakery', 'sicilian'],
+  },
+  {
+    id: 'tiramisu',
+    name: 'Tiramisu',
+    cuisine: 'italian',
+    course: 'dessert',
+    textures: ['soft'],
+    flavors: ['sweet'],
+    note: 'Coffee-soaked savoiardi under mascarpone and cocoa.',
+    terms: ['tiramisu', 'italian', 'dessert', 'pasticceria'],
+  },
+  {
+    id: 'affogato',
+    name: 'Affogato',
+    cuisine: 'italian',
+    course: 'dessert',
+    textures: ['saucy', 'soft'],
+    flavors: ['sweet'],
+    note: 'A shot of espresso poured straight over cold gelato.',
+    terms: ['affogato', 'gelato', 'gelateria', 'italian'],
+  },
+  {
+    id: 'sfogliatella',
+    name: 'Sfogliatella',
+    cuisine: 'italian',
+    course: 'dessert',
+    textures: ['crispy', 'crunchy'],
+    flavors: ['sweet'],
+    note: 'Hundreds of shattering leaves around orange-scented ricotta.',
+    terms: ['sfogliatella', 'pasticceria', 'italian bakery'],
+  },
+
+  // ---- Mexican ----
+  {
+    id: 'bunuelos',
+    name: 'Bunuelos',
+    cuisine: 'mexican',
+    course: 'dessert',
+    textures: ['crunchy', 'crispy'],
+    flavors: ['sweet'],
+    note: 'Thin fried discs snapped apart under cinnamon sugar.',
+    terms: ['bunuelos', 'panaderia', 'mexican bakery'],
+  },
+  {
+    id: 'sopapillas',
+    name: 'Sopapillas',
+    cuisine: 'mexican',
+    course: 'dessert',
+    textures: ['soft', 'crispy'],
+    flavors: ['sweet'],
+    note: 'Puffed pillows of fried dough, honey poured into the hollow.',
+    terms: ['sopapilla', 'panaderia', 'mexican'],
+  },
+  {
+    id: 'flan',
+    name: 'Flan',
+    cuisine: 'mexican',
+    course: 'dessert',
+    textures: ['saucy', 'soft'],
+    flavors: ['sweet'],
+    note: 'Set custard turned out under its own burnt caramel.',
+    terms: ['flan', 'panaderia', 'mexican', 'dessert'],
+  },
+  {
+    id: 'churros',
+    name: 'Churros',
+    cuisine: 'mexican',
+    course: 'dessert',
+    textures: ['crispy', 'crunchy'],
+    flavors: ['sweet'],
+    note: 'Ridged and fried to order, sugar clinging, chocolate to dunk.',
+    terms: ['churro', 'churreria', 'panaderia', 'mexican'],
+  },
+
+  // ---- Indian ----
+  {
+    id: 'nankhatai',
+    name: 'Nankhatai',
+    cuisine: 'indian',
+    course: 'dessert',
+    textures: ['crunchy'],
+    flavors: ['sweet'],
+    note: 'Cardamom shortbread that collapses into crumbs.',
+    terms: ['nankhatai', 'mithai', 'indian sweets', 'bakery'],
+  },
+  {
+    id: 'rasmalai',
+    name: 'Rasmalai',
+    cuisine: 'indian',
+    course: 'dessert',
+    textures: ['soft', 'saucy'],
+    flavors: ['sweet', 'cheesy'],
+    note: 'Soft cheese discs sitting in cold saffron milk.',
+    terms: ['rasmalai', 'mithai', 'indian sweets'],
+  },
+  {
+    id: 'gulab-jamun',
+    name: 'Gulab jamun',
+    cuisine: 'indian',
+    course: 'dessert',
+    textures: ['saucy', 'soft'],
+    flavors: ['sweet'],
+    note: 'Fried milk dumplings soaked through with rose syrup.',
+    terms: ['gulab jamun', 'mithai', 'indian sweets', 'dessert'],
+  },
+  {
+    id: 'jalebi',
+    name: 'Jalebi',
+    cuisine: 'indian',
+    course: 'dessert',
+    textures: ['crispy', 'saucy'],
+    flavors: ['sweet'],
+    note: 'Coils fried crisp then dropped straight into syrup.',
+    terms: ['jalebi', 'mithai', 'indian sweets'],
+  },
+
+  // ---- Mediterranean ----
+  {
+    id: 'baklava',
+    name: 'Baklava',
+    cuisine: 'mediterranean',
+    course: 'dessert',
+    textures: ['crunchy', 'crispy'],
+    flavors: ['sweet'],
+    note: 'Filo and pistachio in layers, honey worked all the way through.',
+    terms: ['baklava', 'patisserie', 'turkish', 'lebanese', 'greek'],
+  },
+  {
+    id: 'rice-pudding',
+    name: 'Sutlac',
+    cuisine: 'mediterranean',
+    course: 'dessert',
+    textures: ['soft', 'saucy'],
+    flavors: ['sweet'],
+    note: 'Rice pudding baked until the top browns and blisters.',
+    terms: ['sutlac', 'rice pudding', 'turkish', 'dessert'],
+  },
+  {
+    id: 'knafeh',
+    name: 'Knafeh',
+    cuisine: 'mediterranean',
+    course: 'dessert',
+    textures: ['saucy', 'crunchy'],
+    flavors: ['sweet', 'cheesy'],
+    note: 'Molten cheese under shredded pastry, syrup poured over hot.',
+    terms: ['knafeh', 'kunefe', 'patisserie', 'lebanese', 'turkish'],
+  },
+  {
+    id: 'loukoumades',
+    name: 'Loukoumades',
+    cuisine: 'mediterranean',
+    course: 'dessert',
+    textures: ['crispy', 'crunchy'],
+    flavors: ['sweet'],
+    note: 'Little fried dough balls drowned in honey and cinnamon.',
+    terms: ['loukoumades', 'greek', 'patisserie', 'dessert'],
+  },
+
+  // ---- American ----
+  {
+    id: 'chocolate-chip-cookie',
+    name: 'Chocolate chip cookie',
+    cuisine: 'american',
+    course: 'dessert',
+    textures: ['crunchy'],
+    flavors: ['sweet'],
+    note: 'Crisp at the edge, chocolate still loose in the middle.',
+    terms: ['cookie', 'bakery', 'cookies', 'american'],
+  },
+  {
+    id: 'soft-serve',
+    name: 'Soft serve',
+    cuisine: 'american',
+    course: 'dessert',
+    textures: ['soft'],
+    flavors: ['sweet'],
+    note: 'Pulled in a spiral, dipped if you ask, gone in five minutes.',
+    terms: ['soft serve', 'ice cream', 'creamery', 'frozen yogurt'],
+  },
+  {
+    id: 'brownie-sundae',
+    name: 'Brownie sundae',
+    cuisine: 'american',
+    course: 'dessert',
+    textures: ['saucy', 'soft'],
+    flavors: ['sweet'],
+    note: 'Warm brownie, cold scoop, hot fudge collapsing between them.',
+    terms: ['sundae', 'ice cream', 'diner', 'dessert'],
+  },
+  {
+    id: 'funnel-cake',
+    name: 'Funnel cake',
+    cuisine: 'american',
+    course: 'dessert',
+    textures: ['crispy', 'crunchy'],
+    flavors: ['sweet'],
+    note: 'Batter poured into hot oil in loops, buried in icing sugar.',
+    terms: ['funnel cake', 'donut', 'doughnut', 'american'],
+  },
 ];
 
 /** Copy shown on the results screen, keyed by `texture-flavor`. */
@@ -683,4 +999,8 @@ export const DIAGNOSES = {
   'saucy-spicy': 'Broth-and-chilli hunger. Sinus clearing imminent.',
   'saucy-savory': 'Deep bowl energy. Something simmered for hours.',
   'saucy-fresh': 'Bright and brothy. Herbs, citrus, heat.',
+  'crunchy-sweet': 'Sugar with structural integrity. Something that snaps.',
+  'crispy-sweet': 'Fried dough weather. You will get sugar on your hands.',
+  'soft-sweet': 'Total comfort collapse, dessert division. No resistance wanted.',
+  'saucy-sweet': 'You want syrup involved. A spoon is non-negotiable.',
 };

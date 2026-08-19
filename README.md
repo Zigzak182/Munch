@@ -5,12 +5,15 @@
 that fit.
 
 ```
-Crunchy · Soft · Saucy · Crispy      →  what it feels like
-Cheesy · Spicy · Savory · Fresh      →  what it tastes of
-                                     →  one of Asian, Italian, Mexican,
-                                        Indian, Mediterranean, American,
-                                        and the nearest places serving it
+Crunchy · Soft · Saucy · Crispy          →  what it feels like
+Cheesy · Spicy · Savory · Fresh · Sweet  →  what it tastes of
+                                         →  one of Asian, Italian, Mexican,
+                                            Indian, Mediterranean, American,
+                                            and the nearest places serving it
 ```
+
+**Sweet** switches the whole search: bakeries, gelaterias and dessert counters
+instead of restaurants. See [Courses](#courses).
 
 Deciding the cuisine is the point: picking it yourself is the step that stalls
 people. The results screen still lists the runner-up cuisines underneath, so
@@ -96,7 +99,8 @@ way.
    mirrored into the URL hash (`#saucy/spicy`), so a diagnosis can be
    bookmarked or shared and comes back on reload.
 2. **Cuisine** — each of the six cuisines is scored by the sum of its best
-   three dishes against the pair. One perfect dish is a lucky guess; three
+   three dishes against the pair, drawn from whichever catalogue the answer
+   selects (see [Courses](#courses)). One perfect dish is a lucky guess; three
    strong ones mean the whole kitchen is pointed at what you want. Every one of
    the sixteen pairs resolves to a cuisine, and every cuisine is reachable.
 
@@ -137,6 +141,32 @@ way.
    Travel time switches mode with distance: a walk up to 2 km, a drive past
    it. Quoting "~40 min walk" for somewhere across town is not advice anyone
    acts on.
+
+## Courses
+
+Answering **sweet** switches the course from `main` to `dessert`, and that
+changes more than the dish list:
+
+| | main | dessert |
+| --- | --- | --- |
+| catalogue | 60 dishes | 24 desserts |
+| Google types | the cuisine's restaurants | `bakery`, `cafe`, `ice_cream_shop`, `donut_shop`, … |
+| OSM tags | `amenity=restaurant\|cafe\|…` | plus `shop=bakery\|pastry\|…` |
+| backstop terms | the cuisine's `osmCuisines` | `dessert`, `patisserie`, `gelato`, … |
+
+The two catalogues never mix — a savoury craving cannot reach a gelateria and
+a sweet one cannot reach a curry house — because every ranking filters on
+course before it scores anything.
+
+The cuisine is still derived, so a dessert search stays cuisine-flavoured: the
+matched dishes' own terms (`churro`, `baklava`, `pasticceria`) lead the venue
+ranking, and only the generic backstop follows. Each cuisine carries exactly
+four desserts, one leading on each texture, so no cuisine wins the sweet pairs
+on depth alone — the same rule the main catalogue follows.
+
+A bakery is mapped in OpenStreetMap as `shop=bakery`, usually with no
+`amenity` and no `cuisine` tag, which is why the fallback provider had to grow
+a shop clause; matching on amenity alone returned almost no bakeries at all.
 
 ## Data sources
 

@@ -406,15 +406,15 @@ async function search(origin, label) {
 
   state.origin = origin;
   state.originLabel = label;
-  const { terms, cuisine } = diagnose(state);
+  const { terms, cuisine, course, search: venueHints } = diagnose(state);
 
-  setStatus(`Looking for ${cuisine.label} places near ${label}…`, 'busy');
+  const noun = course === 'dessert' ? `${cuisine.label} dessert` : cuisine.label;
+  setStatus(`Looking for ${noun} places near ${label}…`, 'busy');
   $('results').hidden = true;
 
   try {
     const { places, radius } = await findNearbyPlaces(origin, {
-      googleTypes: cuisine.googleTypes,
-      cuisineTags: cuisine.osmCuisines,
+      ...venueHints,
       nameTerms: terms,
       signal: controller.signal,
     });
@@ -424,7 +424,7 @@ async function search(origin, label) {
     state.radius = radius;
 
     if (places.length === 0) {
-      setStatus(`No ${cuisine.label} places within ${formatDistance(radius)}. Try one of the alternatives above, or search a different area.`, 'warn');
+      setStatus(`No ${noun} places within ${formatDistance(radius)}. Try one of the alternatives above, or search a different area.`, 'warn');
       renderResults();
       return;
     }
